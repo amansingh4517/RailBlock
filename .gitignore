@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.output/
+.vinxi/
+.tanstack/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Vercel
+.vercel/
+
+# Logs
+*.log
+/tmp/
+
+# Lock files for platform tooling
+.node_modules.lock
+
+# Screenshots (generated during QA)
+screenshots/
+
+# Grok platform internals
+.grok/
