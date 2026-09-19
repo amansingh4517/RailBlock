@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { clearSession, getSession, saveSession, type UserSession } from "./auth";
 import { TASKS } from "./data";
 import { computeKpis } from "./kpis";
 import { activeTasks, optimize } from "./optimizer";
@@ -10,6 +11,7 @@ import {
   type Scenario,
   type Task,
   type TaskStatus,
+  type SystemConfig,
 } from "./types";
 
 function applyPlan(scenario: Scenario): { blocks: ReturnType<typeof optimize>; tasks: Task[] } {
@@ -24,13 +26,22 @@ function applyPlan(scenario: Scenario): { blocks: ReturnType<typeof optimize>; t
   return { blocks, tasks };
 }
 
-const initialScenario = DEFAULT_SCENARIO;
+const initialScenario: Scenario = { ...DEFAULT_SCENARIO };
 const seeded = applyPlan(initialScenario);
 const initialKpis = computeKpis(seeded.blocks, initialScenario, seeded.tasks);
 
+const initialConfig: SystemConfig = {
+  minBlockDurationMin: 120,
+  maxBlockDurationMin: 360,
+  safetyHeadwayMin: 15,
+  shadowPolicy: "AUTO_CLUSTERING",
+};
+
 interface RailState {
+  session: UserSession | null;
   role: Role;
   scenario: Scenario;
+  config: SystemConfig;
   blocks: ReturnType<typeof optimize>;
   tasks: Task[];
   kpis: typeof initialKpis;
@@ -39,15 +50,22 @@ interface RailState {
   selectedTaskId: string | null;
   grokBrief: string | null;
   grokBusy: boolean;
+  setSession: (session: UserSession | null) => void;
   setRole: (role: Role) => void;
+  logout: () => void;
   setScenario: (patch: Partial<Scenario>) => void;
+  updateConfig: (patch: Partial<SystemConfig>) => void;
   reoptimize: () => void;
   selectBlock: (id: string | null) => void;
   selectTask: (id: string | null) => void;
   setBlockStatus: (id: string, status: BlockStatus, note?: string) => void;
+  updateTaskStatus: (taskId: string, status: TaskStatus, note?: string, reason?: string) => void;
   shiftBlock: (id: string, minutes: number) => void;
   setGrokBrief: (text: string | null) => void;
   setGrokBusy: (busy: boolean) => void;
+  resetToSeed: () => void;
+  addTask: (task: Task) => void;
+  addAuditLog: (action: string, detail: string, blockId?: string) => void;
 }
 
 let auditSeq = 1;
@@ -66,9 +84,13 @@ function stamp(actor: Role, action: string, detail: string, blockId?: string): A
   };
 }
 
+const initialSession = getSession();
+
 export const useRailStore = create<RailState>((set, get) => ({
-  role: "CONTROL",
+  session: initialSession,
+  role: initialSession ? initialSession.role : "CONTROL",
   scenario: initialScenario,
+  config: initialConfig,
   blocks: seeded.blocks,
   tasks: seeded.tasks,
   kpis: initialKpis,
@@ -80,8 +102,32 @@ export const useRailStore = create<RailState>((set, get) => ({
   selectedTaskId: null,
   grokBrief: null,
   grokBusy: false,
+  setSession: (session) => {
+    if (session) {
+      saveSession(session);
+      set({ session, role: session.role });
+    } else {
+      clearSession();
+      set({ session: null });
+    }
+  },
+  logout: () => {
+    clearSession();
+    set({ session: null });
+  },
   setRole: (role) => set({ role }),
   setScenario: (patch) => set({ scenario: { ...get().scenario, ...patch } }),
+  updateConfig: (patch) => {
+    const { role } = get();
+    const nextConfig = { ...get().config, ...patch };
+    set({
+      config: nextConfig,
+      audit: [
+        stamp(role, "CONFIG_CHANGE", `System configuration updated: ${Object.keys(patch).join(", ")}.`),
+        ...get().audit,
+      ],
+    });
+  },
   reoptimize: () => {
     const { scenario, role } = get();
     const next = applyPlan(scenario);
@@ -112,6 +158,24 @@ export const useRailStore = create<RailState>((set, get) => ({
       audit: [stamp(role, status, `${id} marked ${status}${note ? ` — ${note}` : ""}.`, id), ...get().audit],
     });
   },
+  updateTaskStatus: (taskId, status, note, reason) => {
+    const { role, scenario, blocks } = get();
+    const tasks = get().tasks.map((t) =>
+      t.id === taskId ? { ...t, status, rejectionReason: reason ?? t.rejectionReason } : t
+    );
+    set({
+      tasks,
+      kpis: computeKpis(blocks, scenario, tasks),
+      audit: [
+        stamp(
+          role,
+          status === "ACCEPTED" ? "ACCEPT_REQUEST" : status === "REJECTED" ? "REJECT_REQUEST" : "TASK_UPDATE",
+          `Request ${taskId} marked ${status}${reason ? ` (Reason: ${reason})` : note ? ` — ${note}` : ""}.`,
+        ),
+        ...get().audit,
+      ],
+    });
+  },
   shiftBlock: (id, minutes) => {
     const { role, scenario } = get();
     const blocks = get().blocks.map((b) => {
@@ -131,4 +195,41 @@ export const useRailStore = create<RailState>((set, get) => ({
   },
   setGrokBrief: (text) => set({ grokBrief: text }),
   setGrokBusy: (busy) => set({ grokBusy: busy }),
+  resetToSeed: () => {
+    const fresh = applyPlan(DEFAULT_SCENARIO);
+    set({
+      scenario: DEFAULT_SCENARIO,
+      config: initialConfig,
+      blocks: fresh.blocks,
+      tasks: fresh.tasks,
+      kpis: computeKpis(fresh.blocks, DEFAULT_SCENARIO, fresh.tasks),
+      selectedBlockId: null,
+      selectedTaskId: null,
+      grokBrief: null,
+      grokBusy: false,
+    });
+  },
+  addTask: (task) => {
+    const enrichedTask: Task = {
+      ...task,
+      status: task.status || "NEW",
+      submittedAt: task.submittedAt || new Date().toISOString(),
+    };
+    const tasks = [enrichedTask, ...get().tasks];
+    const { role, scenario, blocks } = get();
+    set({
+      tasks,
+      kpis: computeKpis(blocks, scenario, tasks),
+      audit: [
+        stamp(role, "REQUISITION", `Requisition ${task.id} (${task.department}) submitted: ${task.title}`),
+        ...get().audit,
+      ],
+    });
+  },
+  addAuditLog: (action, detail, blockId) => {
+    const { role } = get();
+    set({
+      audit: [stamp(role, action, detail, blockId), ...get().audit],
+    });
+  },
 }));

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { toast } from "sonner";
 import { DeptBadge, StatusBadge } from "@/components/rail/bits";
 import { Button } from "@/components/ui/button";
@@ -6,14 +7,19 @@ import { WINDOWS } from "@/lib/rail/data";
 import { formatHours, formatSpan, kindLabel, lineLabel, minToHhmm, weekday } from "@/lib/rail/format";
 import { priorityScore } from "@/lib/rail/scoring";
 import { useRailStore } from "@/lib/rail/store";
+import { RequestDrawer } from "@/components/control/request-drawer";
+import type { Task } from "@/lib/rail/types";
 
 export function BlockDetail() {
+  const [drawerTask, setDrawerTask] = useState<Task | null>(null);
   const id = useRailStore((s) => s.selectedBlockId);
+  const selectBlock = useRailStore((s) => s.selectBlock);
   const blocks = useRailStore((s) => s.blocks);
   const tasks = useRailStore((s) => s.tasks);
   const role = useRailStore((s) => s.role);
   const setBlockStatus = useRailStore((s) => s.setBlockStatus);
   const shiftBlock = useRailStore((s) => s.shiftBlock);
+
   const block = blocks.find((b) => b.id === id);
   if (!block) {
     return <p className="text-sm text-muted">Select a possession on the board.</p>;
@@ -51,24 +57,47 @@ export function BlockDetail() {
       <Separator />
 
       <div>
-        <p className="mb-2 text-xs uppercase tracking-wider text-muted">Work in this possession</p>
+        <p className="mb-2 text-xs uppercase tracking-wider text-muted">
+          Originating Department Demands ({packed.length})
+        </p>
         <ul className="space-y-3">
           {packed.map((t) =>
             t ? (
-              <li key={t.id} className="rounded-lg bg-surface-2 p-3">
+              <li
+                key={t.id}
+                className="rounded-lg bg-surface-2 p-3 border border-border/70 hover:border-primary/40 transition-colors cursor-pointer group"
+                onClick={() => setDrawerTask(t)}
+              >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm text-fg">{t.title}</p>
+                  <div className="flex items-center gap-1.5">
+                    <DeptBadge d={t.department} />
+                    <p className="text-sm font-medium text-fg group-hover:text-primary transition-colors">
+                      {t.title}
+                    </p>
+                  </div>
                   <span className="font-mono text-xs text-muted">{priorityScore(t).toFixed(0)}</span>
                 </div>
-                <p className="mt-1 text-xs text-muted">{t.detail}</p>
-                <p className="mt-1 font-mono text-[11px] text-faint">
-                  {t.id} · {t.source} · {formatHours(t.durationHours)}
-                </p>
+                <p className="mt-1 text-xs text-muted line-clamp-2">{t.detail}</p>
+                <div className="mt-2 flex items-center justify-between font-mono text-[11px] text-faint">
+                  <span>
+                    {t.id} · {t.source} · {formatHours(t.durationHours)}
+                  </span>
+                  <span className="text-primary text-[10px] underline underline-offset-2">
+                    View request details &rarr;
+                  </span>
+                </div>
               </li>
             ) : null,
           )}
         </ul>
       </div>
+
+      <RequestDrawer
+        task={drawerTask}
+        isOpen={Boolean(drawerTask)}
+        onClose={() => setDrawerTask(null)}
+        onSelectBlock={(bId) => selectBlock(bId)}
+      />
 
       <div className="flex flex-wrap gap-2">
         <Button

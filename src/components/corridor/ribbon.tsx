@@ -7,9 +7,11 @@ import { formatSpan, minToHhmm, weekday } from "@/lib/rail/format";
 export function CorridorRibbon({
   blocks,
   compact,
+  highlightSpan,
 }: {
   blocks: PlannedBlock[];
   compact?: boolean;
+  highlightSpan?: { fromKm: number; toKm: number; label?: string };
 }) {
   const selected = useRailStore((s) => s.selectedBlockId);
   const selectBlock = useRailStore((s) => s.selectBlock);
@@ -18,10 +20,18 @@ export function CorridorRibbon({
   return (
     <div className="rounded-xl bg-surface p-4 md:p-5 hairline">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <p className="text-xs uppercase tracking-wider text-muted">Corridor occupancy</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs uppercase tracking-wider text-muted">Corridor occupancy</p>
+          {highlightSpan && (
+            <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[10px] font-mono font-bold text-amber-400 border border-amber-500/30">
+              Focus: Km {highlightSpan.fromKm.toFixed(1)}–{highlightSpan.toKm.toFixed(1)} {highlightSpan.label ? `(${highlightSpan.label})` : ""}
+            </span>
+          )}
+        </div>
         <p className="font-mono text-[11px] text-faint">0 — {CORRIDOR_KM} km</p>
       </div>
       <div className="relative">
+
         <svg viewBox={`0 0 ${CORRIDOR_KM} ${compact ? 36 : 52}`} className="h-auto w-full" role="img" aria-label="NDLS to UMB corridor">
           <line x1="0" y1={compact ? 18 : 26} x2={CORRIDOR_KM} y2={compact ? 18 : 26} className="stroke-border" strokeWidth="6" />
           <line x1="0" y1={compact ? 14 : 22} x2={CORRIDOR_KM} y2={compact ? 14 : 22} className="stroke-muted" strokeWidth="1.2" />
@@ -64,6 +74,30 @@ export function CorridorRibbon({
               />
             </g>
           ))}
+          {highlightSpan && (
+            <g className="animate-pulse">
+              <rect
+                x={highlightSpan.fromKm}
+                y={compact ? 4 : 8}
+                width={Math.max(2, highlightSpan.toKm - highlightSpan.fromKm)}
+                height={compact ? 28 : 36}
+                rx="2"
+                fill="none"
+                stroke="#f59e0b"
+                strokeWidth="1.5"
+                strokeDasharray="2,2"
+              />
+              <rect
+                x={highlightSpan.fromKm}
+                y={compact ? 12 : 18}
+                width={Math.max(2, highlightSpan.toKm - highlightSpan.fromKm)}
+                height={compact ? 12 : 16}
+                rx="1"
+                fill="#f59e0b"
+                opacity={0.35}
+              />
+            </g>
+          )}
         </svg>
         <div className="mt-1 flex justify-between">
           {STATIONS.filter((_, i) => i % 2 === 0 || STATIONS.length < 10).map((s) => (

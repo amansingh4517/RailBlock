@@ -10,16 +10,33 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccessRouteImport } from './routes/access'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AssetsRouteImport } from './routes/assets'
+import { Route as ControlRouteImport } from './routes/control'
 import { Route as DataRouteImport } from './routes/data'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SimulatorRouteImport } from './routes/simulator'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as WorkspaceEngineeringRouteImport } from './routes/workspace.engineering'
+import { Route as WorkspaceSntRouteImport } from './routes/workspace.snt'
+import { Route as WorkspaceTrdRouteImport } from './routes/workspace.trd'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccessRoute = AccessRouteImport.update({
+  id: '/access',
+  path: '/access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssetsRoute = AssetsRouteImport.update({
@@ -27,9 +44,19 @@ const AssetsRoute = AssetsRouteImport.update({
   path: '/assets',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ControlRoute = ControlRouteImport.update({
+  id: '/control',
+  path: '/control',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DataRoute = DataRouteImport.update({
   id: '/data',
   path: '/data',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlanRoute = PlanRouteImport.update({
@@ -52,60 +79,137 @@ const TasksRoute = TasksRouteImport.update({
   path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkspaceEngineeringRoute = WorkspaceEngineeringRouteImport.update({
+  id: '/workspace/engineering',
+  path: '/workspace/engineering',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkspaceSntRoute = WorkspaceSntRouteImport.update({
+  id: '/workspace/snt',
+  path: '/workspace/snt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkspaceTrdRoute = WorkspaceTrdRouteImport.update({
+  id: '/workspace/trd',
+  path: '/workspace/trd',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/access': typeof AccessRoute
+  '/admin': typeof AdminRoute
   '/assets': typeof AssetsRoute
+  '/control': typeof ControlRoute
   '/data': typeof DataRoute
+  '/login': typeof LoginRoute
   '/plan': typeof PlanRoute
   '/reports': typeof ReportsRoute
   '/simulator': typeof SimulatorRoute
   '/tasks': typeof TasksRoute
+  '/workspace/engineering': typeof WorkspaceEngineeringRoute
+  '/workspace/snt': typeof WorkspaceSntRoute
+  '/workspace/trd': typeof WorkspaceTrdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/access': typeof AccessRoute
+  '/admin': typeof AdminRoute
   '/assets': typeof AssetsRoute
+  '/control': typeof ControlRoute
   '/data': typeof DataRoute
+  '/login': typeof LoginRoute
   '/plan': typeof PlanRoute
   '/reports': typeof ReportsRoute
   '/simulator': typeof SimulatorRoute
   '/tasks': typeof TasksRoute
+  '/workspace/engineering': typeof WorkspaceEngineeringRoute
+  '/workspace/snt': typeof WorkspaceSntRoute
+  '/workspace/trd': typeof WorkspaceTrdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/access': typeof AccessRoute
+  '/admin': typeof AdminRoute
   '/assets': typeof AssetsRoute
+  '/control': typeof ControlRoute
   '/data': typeof DataRoute
+  '/login': typeof LoginRoute
   '/plan': typeof PlanRoute
   '/reports': typeof ReportsRoute
   '/simulator': typeof SimulatorRoute
   '/tasks': typeof TasksRoute
+  '/workspace/engineering': typeof WorkspaceEngineeringRoute
+  '/workspace/snt': typeof WorkspaceSntRoute
+  '/workspace/trd': typeof WorkspaceTrdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/assets' | '/data' | '/plan' | '/reports' | '/simulator' | '/tasks'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/assets' | '/data' | '/plan' | '/reports' | '/simulator' | '/tasks'
-  id:
-    | '__root__'
     | '/'
+    | '/access'
+    | '/admin'
     | '/assets'
+    | '/control'
     | '/data'
+    | '/login'
     | '/plan'
     | '/reports'
     | '/simulator'
     | '/tasks'
+    | '/workspace/engineering'
+    | '/workspace/snt'
+    | '/workspace/trd'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/access'
+    | '/admin'
+    | '/assets'
+    | '/control'
+    | '/data'
+    | '/login'
+    | '/plan'
+    | '/reports'
+    | '/simulator'
+    | '/tasks'
+    | '/workspace/engineering'
+    | '/workspace/snt'
+    | '/workspace/trd'
+  id:
+    | '__root__'
+    | '/'
+    | '/access'
+    | '/admin'
+    | '/assets'
+    | '/control'
+    | '/data'
+    | '/login'
+    | '/plan'
+    | '/reports'
+    | '/simulator'
+    | '/tasks'
+    | '/workspace/engineering'
+    | '/workspace/snt'
+    | '/workspace/trd'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccessRoute: typeof AccessRoute
+  AdminRoute: typeof AdminRoute
   AssetsRoute: typeof AssetsRoute
+  ControlRoute: typeof ControlRoute
   DataRoute: typeof DataRoute
+  LoginRoute: typeof LoginRoute
   PlanRoute: typeof PlanRoute
   ReportsRoute: typeof ReportsRoute
   SimulatorRoute: typeof SimulatorRoute
   TasksRoute: typeof TasksRoute
+  WorkspaceEngineeringRoute: typeof WorkspaceEngineeringRoute
+  WorkspaceSntRoute: typeof WorkspaceSntRoute
+  WorkspaceTrdRoute: typeof WorkspaceTrdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -117,6 +221,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/access': {
+      id: '/access'
+      path: '/access'
+      fullPath: '/access'
+      preLoaderRoute: typeof AccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/assets': {
       id: '/assets'
       path: '/assets'
@@ -124,11 +242,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssetsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/control': {
+      id: '/control'
+      path: '/control'
+      fullPath: '/control'
+      preLoaderRoute: typeof ControlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/data': {
       id: '/data'
       path: '/data'
       fullPath: '/data'
       preLoaderRoute: typeof DataRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plan': {
@@ -159,17 +291,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workspace/engineering': {
+      id: '/workspace/engineering'
+      path: '/workspace/engineering'
+      fullPath: '/workspace/engineering'
+      preLoaderRoute: typeof WorkspaceEngineeringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workspace/snt': {
+      id: '/workspace/snt'
+      path: '/workspace/snt'
+      fullPath: '/workspace/snt'
+      preLoaderRoute: typeof WorkspaceSntRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workspace/trd': {
+      id: '/workspace/trd'
+      path: '/workspace/trd'
+      fullPath: '/workspace/trd'
+      preLoaderRoute: typeof WorkspaceTrdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccessRoute: AccessRoute,
+  AdminRoute: AdminRoute,
   AssetsRoute: AssetsRoute,
+  ControlRoute: ControlRoute,
   DataRoute: DataRoute,
+  LoginRoute: LoginRoute,
   PlanRoute: PlanRoute,
   ReportsRoute: ReportsRoute,
   SimulatorRoute: SimulatorRoute,
   TasksRoute: TasksRoute,
+  WorkspaceEngineeringRoute: WorkspaceEngineeringRoute,
+  WorkspaceSntRoute: WorkspaceSntRoute,
+  WorkspaceTrdRoute: WorkspaceTrdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
