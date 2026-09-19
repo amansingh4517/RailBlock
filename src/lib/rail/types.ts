@@ -2,7 +2,16 @@ export type Department = "ENGG" | "SNT" | "TRD";
 export type Role = "CONTROL" | "ENGG" | "SNT" | "TRD" | "ADMIN";
 export type TaskSource = "TMS" | "SMMS" | "TDMS" | "BDMS";
 export type Line = "UP" | "DN" | "BOTH";
-export type TaskStatus = "OPEN" | "PLANNED" | "APPROVED" | "DONE" | "DEFERRED";
+export type TaskStatus =
+  | "NEW"
+  | "OPEN"
+  | "UNDER_REVIEW"
+  | "ACCEPTED"
+  | "PLANNED"
+  | "APPROVED"
+  | "REJECTED"
+  | "DONE"
+  | "DEFERRED";
 export type BlockStatus = "DRAFT" | "PENDING" | "APPROVED" | "MODIFIED" | "REJECTED";
 export type WindowKind = "NIGHT" | "MIDDAY" | "MEGA" | "SHADOW";
 export type Weather = "CLEAR" | "RAIN" | "FOG" | "HEAT";
@@ -68,7 +77,17 @@ export interface Task {
   latest: string;
   canBundle: boolean;
   status: TaskStatus;
+  rejectionReason?: string;
+  submittedAt?: string;
 }
+
+export interface SystemConfig {
+  minBlockDurationMin: number;
+  maxBlockDurationMin: number;
+  safetyHeadwayMin: number;
+  shadowPolicy: "AUTO_CLUSTERING" | "MANUAL";
+}
+
 
 export interface WindowSlot {
   id: string;
