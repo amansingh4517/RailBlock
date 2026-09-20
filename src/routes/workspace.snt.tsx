@@ -62,6 +62,7 @@ function SntMain({ currentTab }: { currentTab: string }) {
   const sntBlocks = blocks.filter(
     (b) => b.departments.includes("SNT") && b.date >= WEEK_START
   );
+  const sanctionedSntBlocks = sntBlocks.filter((b) => b.status === "APPROVED");
 
   const pendingTasks = sntTasks.filter((t) => t.status === "OPEN");
   const plannedTasks = sntTasks.filter((t) => t.status === "PLANNED");
@@ -226,7 +227,9 @@ function SntMain({ currentTab }: { currentTab: string }) {
             <div className="rounded-xl bg-surface p-4 border border-border">
               <p className="text-[11px] uppercase font-mono text-muted">Active S&amp;T Possessions</p>
               <p className="font-display text-3xl font-bold mt-1 text-primary">{sntBlocks.length}</p>
-              <p className="text-[11px] text-muted mt-1">Joint &amp; Isolated Blocks</p>
+              <p className="text-[11px] text-muted mt-1">
+                {sanctionedSntBlocks.length} Sanctioned · {sntBlocks.length - sanctionedSntBlocks.length} Pending
+              </p>
             </div>
 
             <div className="rounded-xl bg-surface p-4 border border-border">

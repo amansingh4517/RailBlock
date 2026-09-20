@@ -274,7 +274,7 @@ function TrdMain({ currentTab }: { currentTab: string }) {
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-xl font-bold flex items-center gap-2">
                   <Power className="size-4 text-primary" />
-                  <span>Upcoming Sanctioned Power Blocks</span>
+                  <span>Upcoming Power Blocks</span>
                 </h2>
                 <Link
                   to="/workspace/trd"
