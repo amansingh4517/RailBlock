@@ -6,8 +6,7 @@ import {
   Layers,
   ArrowRight,
   Clock,
-  MapPin,
-  TrainTrack,
+  Sparkles,
   ShieldAlert,
   Wrench,
   Ban,
@@ -16,7 +15,6 @@ import {
 import { toast } from "sonner";
 import { DeptBadge, StatusBadge } from "@/components/rail/bits";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { formatHours, formatSpan, lineLabel, minToHhmm, weekday } from "@/lib/rail/format";
 import { priorityScore } from "@/lib/rail/scoring";
 import { useRailStore } from "@/lib/rail/store";
@@ -57,14 +55,17 @@ export function RequestDrawer({
   // Check if seated in an operational block
   const resultingBlock = blocks.find((b) => b.taskIds.includes(task.id));
 
-  // Handle Accept
+  function handleStartReview() {
+    updateTaskStatus(task!.id, "UNDER_REVIEW", "Under active review by Control Desk");
+    toast.info(`Request ${task!.id} moved to Under Review`);
+  }
+
   function handleAccept() {
     updateTaskStatus(task!.id, "ACCEPTED", "Accepted for planning and multi-department bundling");
     toast.success(`Request ${task!.id} accepted for corridor planning`);
     onClose();
   }
 
-  // Handle Reject
   function handleRejectSubmit() {
     updateTaskStatus(
       task!.id,
@@ -78,6 +79,7 @@ export function RequestDrawer({
   }
 
   const pScore = priorityScore(task).toFixed(0);
+  const priorityLevel = task.severity >= 4 ? "HIGH" : task.severity === 3 ? "MEDIUM" : "ROUTINE";
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
@@ -90,7 +92,7 @@ export function RequestDrawer({
               <DeptBadge d={task.department} />
               <StatusBadge status={task.status} />
               <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] font-mono text-muted border border-border">
-                {task.source}
+                Source: {task.source}
               </span>
             </div>
             <h2 className="font-display text-xl font-bold text-fg leading-tight">
@@ -146,28 +148,55 @@ export function RequestDrawer({
               <span className="font-mono font-bold text-xs text-amber-400 mt-0.5 block">
                 {pScore} / 100
               </span>
-              <span className="text-[10px] text-muted">Severity {task.severity}/5</span>
+              <span className="text-[10px] text-muted">{priorityLevel} (Sev {task.severity}/5)</span>
             </div>
 
             <div className="rounded-xl bg-surface-2 p-3 border border-border">
-              <span className="text-[11px] font-mono text-muted block">Window Limit</span>
+              <span className="text-[11px] font-mono text-muted block">Window Target</span>
               <span className="font-mono font-bold text-[11px] text-fg mt-0.5 block truncate">
                 {task.latest}
               </span>
-              <span className="text-[10px] text-muted">Planning target</span>
+              <span className="text-[10px] text-muted">Target horizon</span>
             </div>
+          </div>
+
+          {/* AI / Priority Explanation (PS-26027 Requirement) */}
+          <div className="rounded-xl bg-surface-2 p-4 border border-border space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
+                <Sparkles className="size-3.5 text-primary" />
+                <span>AI Prioritization &amp; Decision Justification</span>
+              </h3>
+              <span className="font-mono text-xs font-bold text-amber-400">
+                {priorityLevel} PRIORITY
+              </span>
+            </div>
+            <ul className="space-y-1 text-xs text-muted">
+              <li className="flex items-start gap-1.5">
+                <span className="text-primary font-bold">•</span>
+                <span><strong className="text-fg">Criticality:</strong> Severity index {task.severity}/5 on primary trunk corridor infrastructure.</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-primary font-bold">•</span>
+                <span><strong className="text-fg">Urgency:</strong> Overdue maintenance cycle targeting {task.latest}.</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-primary font-bold">•</span>
+                <span><strong className="text-fg">Corridor Impact:</strong> Asset availability impact on {lineLabel(task.line)} track with ~{(task.trafficImpact * 5.5).toFixed(0)}m detention exposure.</span>
+              </li>
+            </ul>
           </div>
 
           {/* Work Description */}
           <div className="rounded-xl bg-surface-2 p-4 border border-border space-y-2">
             <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
               <Wrench className="size-3.5 text-primary" />
-              <span>Engineering Description &amp; Requirements</span>
+              <span>Departmental Work Description &amp; Machinery</span>
             </h3>
             <p className="text-xs text-fg leading-relaxed">{task.detail}</p>
             {task.resourceIds.length > 0 && (
               <div className="pt-1 flex items-center gap-2 text-xs">
-                <span className="font-mono text-[11px] text-muted">Resources/Machinery:</span>
+                <span className="font-mono text-[11px] text-muted">Resources / Machines:</span>
                 <span className="font-mono text-xs text-primary font-medium">
                   {task.resourceIds.join(", ")}
                 </span>
@@ -175,41 +204,57 @@ export function RequestDrawer({
             )}
           </div>
 
-          {/* Operational Impact & Conflict Check */}
-          <div className="rounded-xl bg-surface-2 p-4 border border-border space-y-3">
-            <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
-              <ShieldAlert className="size-3.5 text-amber-400" />
-              <span>Operational Impact Analysis</span>
-            </h3>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <span className="text-muted font-mono block text-[11px]">Detention Exposure</span>
-                <span className="font-bold text-fg">
-                  ~{(task.trafficImpact * 5.5).toFixed(0)} min potential delay
+          {/* Traceability: Resulting Block */}
+          {resultingBlock && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[11px] uppercase tracking-wider text-primary font-bold block">
+                  Resulting Operational Block
+                </span>
+                <span className="rounded bg-primary/20 px-2 py-0.5 text-[10px] font-mono text-primary font-semibold">
+                  {resultingBlock.status === "APPROVED" ? "SANCTIONED" : "PROPOSED"}
                 </span>
               </div>
-              <div>
-                <span className="text-muted font-mono block text-[11px]">Headway Constraint</span>
-                <span className="font-bold text-fg">15 min safety buffer</span>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-mono text-sm font-bold text-fg">{resultingBlock.id}</p>
+                  <p className="text-xs text-muted">
+                    {weekday(resultingBlock.date)} · {minToHhmm(resultingBlock.startMin)}–{minToHhmm(resultingBlock.endMin)}
+                  </p>
+                  <p className="text-[11px] font-mono text-muted">
+                    {formatSpan(resultingBlock.fromKm, resultingBlock.toKm)} ({lineLabel(resultingBlock.line)})
+                  </p>
+                </div>
+                {onSelectBlock && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1 text-xs"
+                    onClick={() => {
+                      onSelectBlock(resultingBlock.id);
+                      onClose();
+                    }}
+                  >
+                    <span>View Block</span>
+                    <ArrowRight className="size-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
-            <p className="text-[11px] text-muted">
-              Traffic simulation flags high passenger train density between 06:00 and 22:00. Shadow night slotting recommended.
-            </p>
-          </div>
+          )}
 
           {/* Related Nearby Departmental Work */}
           <div className="rounded-xl bg-surface-2 p-4 border border-border space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
                 <Layers className="size-3.5 text-emerald-400" />
-                <span>Related Nearby Demands (&plusmn;5 km)</span>
+                <span>Nearby Demands for Multi-Dept Bundling (&plusmn;5 km)</span>
               </h3>
-              <span className="text-[11px] font-mono text-muted">{nearbyWork.length} nearby</span>
+              <span className="text-[11px] font-mono text-muted">{nearbyWork.length} candidates</span>
             </div>
 
             {nearbyWork.length === 0 ? (
-              <p className="text-xs text-muted">No nearby demands found in this corridor section.</p>
+              <p className="text-xs text-muted">No adjacent demands found in this section.</p>
             ) : (
               <ul className="space-y-2">
                 {nearbyWork.slice(0, 3).map((nw) => (
@@ -233,46 +278,15 @@ export function RequestDrawer({
             )}
 
             {nearbyWork.length > 0 && (
-              <div className="rounded-lg bg-primary/10 p-2.5 text-[11px] text-primary border border-primary/20 flex items-center gap-2">
+              <div className="rounded-lg bg-emerald-500/10 p-2.5 text-[11px] text-emerald-400 border border-emerald-500/20 flex items-center gap-2">
                 <CheckCircle2 className="size-4 shrink-0" />
-                <span>AI Bundling Opportunity: Multiple departments can share this single track possession.</span>
+                <span>Multi-Department Bundling Opportunity: Multiple maintenance activities can share this single track window.</span>
               </div>
             )}
           </div>
-
-          {/* Traceability: Resulting Block */}
-          {resultingBlock && (
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2">
-              <span className="font-mono text-[11px] uppercase tracking-wider text-primary font-bold block">
-                Resulting Corridor Block
-              </span>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-mono text-sm font-bold text-fg">{resultingBlock.id}</p>
-                  <p className="text-xs text-muted">
-                    {weekday(resultingBlock.date)} · {minToHhmm(resultingBlock.startMin)}–{minToHhmm(resultingBlock.endMin)}
-                  </p>
-                </div>
-                {onSelectBlock && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 gap-1 text-xs"
-                    onClick={() => {
-                      onSelectBlock(resultingBlock.id);
-                      onClose();
-                    }}
-                  >
-                    <span>View Block</span>
-                    <ArrowRight className="size-3.5" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Rejection Dialog or Actions Footer */}
+        {/* Action Controls Footer */}
         <div className="border-t border-border p-4 bg-surface-2/60">
           {rejecting ? (
             <div className="space-y-3 rounded-xl bg-danger/10 p-3 border border-danger/30">
@@ -290,7 +304,7 @@ export function RequestDrawer({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-mono text-muted">Rejection Category</label>
+                <label className="text-[11px] font-mono text-muted">Rejection Reason</label>
                 <select
                   value={rejectionCategory}
                   onChange={(e) => setRejectionCategory(e.target.value)}
@@ -339,7 +353,19 @@ export function RequestDrawer({
                 Close Drawer
               </Button>
 
-              {task.status !== "ACCEPTED" && task.status !== "PLANNED" && task.status !== "APPROVED" && (
+              {/* Status-driven Review Actions */}
+              {(task.status === "NEW" || task.status === "OPEN") && (
+                <Button
+                  size="sm"
+                  onClick={handleStartReview}
+                  className="gap-1.5 text-xs"
+                >
+                  <Clock className="size-4" />
+                  <span>Start Review</span>
+                </Button>
+              )}
+
+              {task.status === "UNDER_REVIEW" && (
                 <div className="flex items-center gap-2">
                   <Button
                     variant="danger"
@@ -357,6 +383,20 @@ export function RequestDrawer({
                     <CheckCircle2 className="size-4" />
                     <span>Accept for Planning</span>
                   </Button>
+                </div>
+              )}
+
+              {(task.status === "ACCEPTED" || task.status === "PLANNED") && (
+                <div className="flex items-center gap-2 text-xs font-mono text-emerald-400">
+                  <CheckCircle2 className="size-4" />
+                  <span>Accepted for Corridor Planning</span>
+                </div>
+              )}
+
+              {task.status === "REJECTED" && (
+                <div className="flex items-center gap-2 text-xs font-mono text-danger">
+                  <Ban className="size-4" />
+                  <span>Request Rejected</span>
                 </div>
               )}
             </div>
