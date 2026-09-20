@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import type { BlockStatus, Department, TaskStatus } from "@/lib/rail/types";
+import type { BlockStatus, Department, TaskStatus, WorkStatus } from "@/lib/rail/types";
 import { DEPT_LABEL } from "@/lib/rail/types";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,31 @@ export function StatusBadge({ status }: { status: BlockStatus | TaskStatus }) {
           ? "caution"
           : "default";
   return <Badge tone={tone}>{status.replace("_", " ")}</Badge>;
+}
+
+export function ControlStatusBadge({ status }: { status: BlockStatus }) {
+  const tone =
+    status === "APPROVED"
+      ? "ok"
+      : status === "REJECTED"
+        ? "danger"
+        : status === "MODIFIED"
+          ? "caution"
+          : "caution";
+  const label =
+    status === "APPROVED"
+      ? "SANCTIONED"
+      : status === "PENDING"
+        ? "AWAITING SANCTION"
+        : status;
+  return <Badge tone={tone}>{label}</Badge>;
+}
+
+export function WorkStatusBadge({ status }: { status?: WorkStatus }) {
+  const s = status || "NOT_STARTED";
+  const tone = s === "COMPLETED" ? "ok" : s === "ACTIVE" ? "caution" : "default";
+  const label = s === "NOT_STARTED" ? "NOT STARTED" : s;
+  return <Badge tone={tone}>{label}</Badge>;
 }
 
 export function PriorityBar({ score }: { score: number }) {

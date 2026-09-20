@@ -198,6 +198,7 @@ export function optimize(scenario: Scenario): PlannedBlock[] {
         departments: depts,
         bundled: depts.length > 1 || packed.length > 1,
         status: "PENDING",
+        workStatus: "NOT_STARTED",
         disruptionMin: disruptionOf(window, durationHours, packed, scenario),
         durationHours,
       });

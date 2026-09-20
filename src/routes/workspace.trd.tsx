@@ -17,6 +17,7 @@ import {
   XCircle,
   ShieldAlert,
   Flame,
+  Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/layout/shell";
@@ -26,11 +27,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DeptBadge, StatusBadge, PriorityBar } from "@/components/rail/bits";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DeptBadge, StatusBadge, PriorityBar, ControlStatusBadge, WorkStatusBadge } from "@/components/rail/bits";
 import { useRailStore } from "@/lib/rail/store";
 import { formatSpan, minToHhmm, weekday, formatHours } from "@/lib/rail/format";
 import { scoreBreakdown } from "@/lib/rail/scoring";
-import { WEEK_START, type Task, type Line } from "@/lib/rail/types";
+import { WEEK_START, type Task, type Line, type PlannedBlock } from "@/lib/rail/types";
 
 const searchSchema = z.object({
   tab: z.enum(["overview", "work", "power-blocks", "requisitions"]).catch("overview").optional(),
@@ -59,16 +61,28 @@ function TrdMain({ currentTab }: { currentTab: string }) {
   const tasks = useRailStore((s) => s.tasks);
   const blocks = useRailStore((s) => s.blocks);
   const addTask = useRailStore((s) => s.addTask);
+  const setWorkStatus = useRailStore((s) => s.setWorkStatus);
 
   const trdTasks = tasks.filter((t) => t.department === "TRD");
   const trdBlocks = blocks.filter(
     (b) => b.departments.includes("TRD") && b.date >= WEEK_START
   );
   const sanctionedTrdBlocks = trdBlocks.filter((b) => b.status === "APPROVED");
+  const pendingTrdBlocks = trdBlocks.filter((b) => b.status === "PENDING");
 
   const pendingTasks = trdTasks.filter((t) => t.status === "OPEN");
   const plannedTasks = trdTasks.filter((t) => t.status === "PLANNED");
   const criticalTasks = trdTasks.filter((t) => t.severity >= 4 && t.status !== "DONE");
+
+  // Filter state for power blocks tab
+  const [possessionFilter, setPossessionFilter] = useState<"ALL" | "SANCTIONED" | "PENDING">("ALL");
+  const [completingBlock, setCompletingBlock] = useState<PlannedBlock | null>(null);
+
+  const displayedPossessions = trdBlocks.filter((b) => {
+    if (possessionFilter === "SANCTIONED") return b.status === "APPROVED";
+    if (possessionFilter === "PENDING") return b.status === "PENDING";
+    return true;
+  });
 
   // Selected task drawer state
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -304,7 +318,10 @@ function TrdMain({ currentTab }: { currentTab: string }) {
                           <DeptBadge key={d} d={d} />
                         ))}
                       </div>
-                      <StatusBadge status={b.status} />
+                      <div className="flex items-center gap-1.5">
+                        <ControlStatusBadge status={b.status} />
+                        <WorkStatusBadge status={b.workStatus} />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -442,20 +459,52 @@ function TrdMain({ currentTab }: { currentTab: string }) {
       {/* Tab 3: POWER BLOCKS */}
       {currentTab === "power-blocks" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h1 className="font-display text-2xl md:text-3xl font-bold">25kV Power Blocks &amp; PTW</h1>
               <p className="text-xs text-muted">
                 Overhead traction isolation permits, SCADA substation status, and tower wagon movements
               </p>
             </div>
-            <span className="font-mono text-xs text-muted rounded bg-surface-2 px-2.5 py-1 border border-border">
-              {trdBlocks.length} Sanctioned Power Blocks
-            </span>
+            <div className="flex items-center gap-1.5 rounded-lg bg-surface-2 p-1 border border-border">
+              <button
+                type="button"
+                onClick={() => setPossessionFilter("ALL")}
+                className={`rounded-md px-2.5 py-1 text-xs font-mono transition-colors ${
+                  possessionFilter === "ALL"
+                    ? "bg-surface font-semibold text-fg shadow-sm border border-border"
+                    : "text-muted hover:text-fg"
+                }`}
+              >
+                All ({trdBlocks.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPossessionFilter("SANCTIONED")}
+                className={`rounded-md px-2.5 py-1 text-xs font-mono transition-colors ${
+                  possessionFilter === "SANCTIONED"
+                    ? "bg-surface font-semibold text-emerald-400 shadow-sm border border-border"
+                    : "text-muted hover:text-emerald-400"
+                }`}
+              >
+                Sanctioned ({sanctionedTrdBlocks.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPossessionFilter("PENDING")}
+                className={`rounded-md px-2.5 py-1 text-xs font-mono transition-colors ${
+                  possessionFilter === "PENDING"
+                    ? "bg-surface font-semibold text-amber-400 shadow-sm border border-border"
+                    : "text-muted hover:text-amber-400"
+                }`}
+              >
+                Pending Sanction ({pendingTrdBlocks.length})
+              </button>
+            </div>
           </div>
 
           <div className="space-y-3">
-            {trdBlocks.map((b) => (
+            {displayedPossessions.map((b) => (
               <div
                 key={b.id}
                 className="rounded-xl border border-border bg-surface p-4 space-y-3 hover:border-emerald-500/40 transition-colors"
@@ -466,7 +515,10 @@ function TrdMain({ currentTab }: { currentTab: string }) {
                     <span className="font-mono text-xs text-muted">
                       {weekday(b.date)} {minToHhmm(b.startMin)}–{minToHhmm(b.endMin)}
                     </span>
-                    <StatusBadge status={b.status} />
+                    <div className="flex items-center gap-1.5">
+                      <ControlStatusBadge status={b.status} />
+                      <WorkStatusBadge status={b.workStatus} />
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono text-muted">
@@ -541,9 +593,124 @@ function TrdMain({ currentTab }: { currentTab: string }) {
                     )}
                   </div>
                 </div>
+
+                {/* TRD Work Completion Lifecycle */}
+                {b.status === "APPROVED" && (
+                  <div className="rounded-lg bg-surface-2 p-3 border border-border/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    {b.workStatus === "COMPLETED" ? (
+                      <div className="flex items-center gap-2 text-xs text-emerald-400">
+                        <CheckCircle2 className="size-4 shrink-0" />
+                        <span>
+                          <strong>OHE Work Completed &amp; Re-energized:</strong> Verified by {b.completedBy?.name || "DEE/TRD"} ({b.completedBy?.department || "TRD"})
+                          {b.completedAt && ` · ${new Date(b.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-xs text-muted flex items-center gap-2">
+                          {b.workStatus === "ACTIVE" ? (
+                            <span className="flex items-center gap-1.5 text-emerald-400 font-mono font-medium">
+                              <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                              OHE Maintenance &amp; Cantilever Work In Progress (ACTIVE)
+                            </span>
+                          ) : (
+                            <span className="font-mono text-muted">
+                              Control sanction granted. 25kV Feeder isolated and earthing placed.
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {(!b.workStatus || b.workStatus === "NOT_STARTED") && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setWorkStatus(b.id, "ACTIVE", session ? { role: session.role, department: session.department, name: session.name } : undefined);
+                                toast.info(`TRD work started on possession ${b.id}. Work Status is now ACTIVE.`);
+                              }}
+                              className="text-xs gap-1.5 h-8 font-mono"
+                            >
+                              <Play className="size-3 text-emerald-400 fill-emerald-400" />
+                              Start Work
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            onClick={() => setCompletingBlock(b)}
+                            className="text-xs gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-mono"
+                          >
+                            <CheckCircle2 className="size-3.5" />
+                            Mark Work Completed
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
+
+          {/* Confirmation Dialog for TRD Work Completion */}
+          <Dialog open={!!completingBlock} onOpenChange={(open) => !open && setCompletingBlock(null)}>
+            <DialogContent className="max-w-md">
+              <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+                <CheckCircle2 className="size-5 text-emerald-400" />
+                Complete OHE Work &amp; Cancel PTW?
+              </DialogTitle>
+              <DialogDescription className="space-y-3 pt-2 text-sm text-muted">
+                <p>
+                  You are confirming that overhead traction maintenance for possession{" "}
+                  <strong className="text-fg font-mono">{completingBlock?.id}</strong> —{" "}
+                  <span className="text-fg font-medium">
+                    km {completingBlock?.fromKm}–{completingBlock?.toKm}
+                  </span>{" "}
+                  has been completed. Tower wagons are clear, earthing discharge rods are removed, and the 25kV sector is ready for re-energization.
+                </p>
+                <div className="rounded-lg bg-surface-2 p-3 border border-border text-xs space-y-1 font-mono">
+                  <div className="flex justify-between">
+                    <span className="text-muted">Control Status:</span>
+                    <span className="text-emerald-400 font-semibold">SANCTIONED (Preserved)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">New Work Status:</span>
+                    <span className="text-emerald-400 font-semibold">COMPLETED</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Responsible Officer:</span>
+                    <span className="text-fg">{session?.name || "Vikas Patel"} ({session?.department || "TRD"})</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted">
+                  This action marks associated TRD tasks as{" "}
+                  <strong className="text-fg">DONE</strong> and cancels Permit-to-Work (PTW) in the SCADA log.
+                </p>
+              </DialogDescription>
+              <div className="flex justify-end gap-2 pt-4 border-t border-border mt-4">
+                <Button variant="outline" size="sm" onClick={() => setCompletingBlock(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                  onClick={() => {
+                    if (completingBlock) {
+                      setWorkStatus(
+                        completingBlock.id,
+                        "COMPLETED",
+                        session ? { role: session.role, department: session.department, name: session.name } : undefined
+                      );
+                      toast.success(`TRD work on ${completingBlock.id} marked as COMPLETED!`);
+                      setCompletingBlock(null);
+                    }
+                  }}
+                >
+                  <CheckCircle2 className="size-4" />
+                  Mark as Completed
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 
