@@ -66,7 +66,7 @@ function SntMain({ currentTab }: { currentTab: string }) {
     (b) => b.departments.includes("SNT") && b.date >= WEEK_START
   );
   const sanctionedSntBlocks = sntBlocks.filter((b) => b.status === "APPROVED");
-  const pendingSntBlocks = sntBlocks.filter((b) => b.status === "PENDING");
+  const pendingSntBlocks = sntBlocks.filter((b) => b.status !== "APPROVED" && b.status !== "REJECTED");
 
   const pendingTasks = sntTasks.filter((t) => t.status === "OPEN");
   const plannedTasks = sntTasks.filter((t) => t.status === "PLANNED");
@@ -78,7 +78,7 @@ function SntMain({ currentTab }: { currentTab: string }) {
 
   const displayedPossessions = sntBlocks.filter((b) => {
     if (possessionFilter === "SANCTIONED") return b.status === "APPROVED";
-    if (possessionFilter === "PENDING") return b.status === "PENDING";
+    if (possessionFilter === "PENDING") return b.status !== "APPROVED" && b.status !== "REJECTED";
     return true;
   });
 

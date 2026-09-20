@@ -88,6 +88,7 @@ function ControlMain({ currentTab }: { currentTab: string }) {
   const setGrokBrief = useRailStore((s) => s.setGrokBrief);
   const grokBrief = useRailStore((s) => s.grokBrief);
   const session = useRailStore((s) => s.session);
+  const sanctionTaskPossession = useRailStore((s) => s.sanctionTaskPossession);
 
   // Global drawer states
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
@@ -368,15 +369,28 @@ function ControlMain({ currentTab }: { currentTab: string }) {
                       </p>
                     </div>
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 text-xs gap-1 self-start sm:self-auto"
-                      onClick={() => setDrawerTask(req)}
-                    >
-                      <span>Review Request</span>
-                      <ArrowRight className="size-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs gap-1 font-mono"
+                        onClick={() => setDrawerTask(req)}
+                      >
+                        <span>Review</span>
+                        <ArrowRight className="size-3.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-sm"
+                        onClick={() => {
+                          const bId = sanctionTaskPossession(req.id);
+                          toast.success(`Demand ${req.id} approved & Possession ${bId} SANCTIONED!`);
+                        }}
+                      >
+                        <CheckCircle2 className="size-3.5" />
+                        <span>Sanction Possession</span>
+                      </Button>
+                    </div>
                   </div>
                 ))}
 
@@ -809,15 +823,28 @@ function ControlMain({ currentTab }: { currentTab: string }) {
                               </div>
                             </div>
 
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 text-xs gap-1 self-start sm:self-auto"
-                              onClick={() => setDrawerTask(t)}
-                            >
-                              <span>Review Demand</span>
-                              <ArrowRight className="size-3.5" />
-                            </Button>
+                            <div className="flex items-center gap-2 self-start sm:self-auto">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs gap-1 font-mono"
+                                onClick={() => setDrawerTask(t)}
+                              >
+                                <span>Review Demand</span>
+                                <ArrowRight className="size-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-sm"
+                                onClick={() => {
+                                  const bId = sanctionTaskPossession(t.id);
+                                  toast.success(`Demand ${t.id} approved & Possession ${bId} SANCTIONED!`);
+                                }}
+                              >
+                                <CheckCircle2 className="size-3.5" />
+                                <span>Sanction Possession</span>
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>

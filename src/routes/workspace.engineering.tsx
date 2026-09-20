@@ -70,7 +70,7 @@ function EngineeringMain({ currentTab }: { currentTab: string }) {
     (b) => b.departments.includes("ENGG") && b.date >= WEEK_START
   );
   const sanctionedEnggBlocks = enggBlocks.filter((b) => b.status === "APPROVED");
-  const pendingEnggBlocks = enggBlocks.filter((b) => b.status === "PENDING");
+  const pendingEnggBlocks = enggBlocks.filter((b) => b.status !== "APPROVED" && b.status !== "REJECTED");
   const enggMachines = RESOURCES.filter(
     (m) =>
       m.kind === "MACHINE" &&
@@ -91,7 +91,7 @@ function EngineeringMain({ currentTab }: { currentTab: string }) {
 
   const displayedPossessions = enggBlocks.filter((b) => {
     if (possessionFilter === "SANCTIONED") return b.status === "APPROVED";
-    if (possessionFilter === "PENDING") return b.status === "PENDING";
+    if (possessionFilter === "PENDING") return b.status !== "APPROVED" && b.status !== "REJECTED";
     return true;
   });
 

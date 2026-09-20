@@ -4,6 +4,7 @@ import { TASKS } from "./data";
 import { computeKpis } from "./kpis";
 import { activeTasks, optimize } from "./optimizer";
 import {
+  WEEK_START,
   DEFAULT_SCENARIO,
   type AuditEvent,
   type BlockStatus,
@@ -67,6 +68,7 @@ interface RailState {
     actor?: { role: Role; department?: string; name?: string }
   ) => void;
   updateTaskStatus: (taskId: string, status: TaskStatus, note?: string, reason?: string) => void;
+  sanctionTaskPossession: (taskId: string, actorNote?: string) => string;
   shiftBlock: (id: string, minutes: number) => void;
   setGrokBrief: (text: string | null) => void;
   setGrokBusy: (busy: boolean) => void;
@@ -281,6 +283,73 @@ export const useRailStore = create<RailState>((set, get) => ({
     });
     persistState(blocks, tasks, nextAudit);
   },
+  sanctionTaskPossession: (taskId, actorNote) => {
+    const { role, scenario, blocks, tasks } = get();
+    const targetTask = tasks.find((t) => t.id === taskId);
+    if (!targetTask) return "";
+
+    let assignedBlockId = "";
+    const existingBlock = blocks.find((b) => b.taskIds.includes(taskId));
+
+    let nextBlocks = blocks;
+    if (existingBlock) {
+      assignedBlockId = existingBlock.id;
+      nextBlocks = blocks.map((b) =>
+        b.id === existingBlock.id
+          ? {
+              ...b,
+              status: "APPROVED" as const,
+              workStatus: b.workStatus || "NOT_STARTED",
+              note: actorNote || b.note || "Sanctioned by Control Office",
+            }
+          : b
+      );
+    } else {
+      assignedBlockId = `B-${targetTask.id.replace(/^T-/, "")}`;
+      const newBlock: ReturnType<typeof optimize>[number] = {
+        id: assignedBlockId,
+        windowId: "W-NIGHT-01",
+        date: WEEK_START,
+        startMin: 480, // 08:00
+        endMin: 480 + Math.round((targetTask.durationHours || 3.5) * 60),
+        durationHours: targetTask.durationHours || 3.5,
+        fromKm: targetTask.fromKm,
+        toKm: targetTask.toKm,
+        line: targetTask.line,
+        departments: [targetTask.department],
+        taskIds: [targetTask.id],
+        status: "APPROVED",
+        workStatus: "NOT_STARTED",
+        bundled: false,
+        disruptionMin: Math.round((targetTask.trafficImpact || 2.5) * 5.5),
+        note: actorNote || "Sanctioned by Control Office",
+      };
+      nextBlocks = [newBlock, ...blocks];
+    }
+
+    const nextTasks = tasks.map((t) =>
+      t.id === taskId ? { ...t, status: "PLANNED" as const } : t
+    );
+
+    const nextAudit = [
+      stamp(
+        role,
+        "SANCTION",
+        `Corridor Possession ${assignedBlockId} SANCTIONED for demand ${taskId} (${targetTask.department}). Forwarded to department execution queue.`,
+        assignedBlockId
+      ),
+      ...get().audit,
+    ];
+
+    set({
+      blocks: nextBlocks,
+      tasks: nextTasks,
+      kpis: computeKpis(nextBlocks, scenario, nextTasks),
+      audit: nextAudit,
+    });
+    persistState(nextBlocks, nextTasks, nextAudit);
+    return assignedBlockId;
+  },
   shiftBlock: (id, minutes) => {
     const { role, scenario } = get();
     const blocks = get().blocks.map((b) => {
@@ -320,21 +389,46 @@ export const useRailStore = create<RailState>((set, get) => ({
   addTask: (task) => {
     const enrichedTask: Task = {
       ...task,
-      status: task.status || "NEW",
+      status: task.status || "OPEN",
       submittedAt: task.submittedAt || new Date().toISOString(),
     };
     const tasks = [enrichedTask, ...get().tasks];
     const { role, scenario, blocks } = get();
+
+    // Automatically provision candidate proposed block so it appears in the department's queue
+    const blockId = `B-${task.id.replace(/^T-/, "")}`;
+    const newBlock: ReturnType<typeof optimize>[number] = {
+      id: blockId,
+      windowId: "W-NIGHT-01",
+      date: WEEK_START,
+      startMin: 480, // 08:00
+      endMin: 480 + Math.round((task.durationHours || 3.5) * 60),
+      durationHours: task.durationHours || 3.5,
+      fromKm: task.fromKm,
+      toKm: task.toKm,
+      line: task.line,
+      departments: [task.department],
+      taskIds: [task.id],
+      status: "PENDING",
+      workStatus: "NOT_STARTED",
+      bundled: false,
+      disruptionMin: Math.round((task.trafficImpact || 2.5) * 5.5),
+      note: `Generated from department requisition ${task.id}`,
+    };
+
+    const nextBlocks = [newBlock, ...blocks];
+
     const nextAudit = [
       stamp(role, "REQUISITION", `Requisition ${task.id} (${task.department}) submitted: ${task.title}`),
       ...get().audit,
     ];
     set({
       tasks,
-      kpis: computeKpis(blocks, scenario, tasks),
+      blocks: nextBlocks,
+      kpis: computeKpis(nextBlocks, scenario, tasks),
       audit: nextAudit,
     });
-    persistState(blocks, tasks, nextAudit);
+    persistState(nextBlocks, tasks, nextAudit);
   },
   addAuditLog: (action, detail, blockId) => {
     const { role } = get();
