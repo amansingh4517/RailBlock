@@ -14,6 +14,7 @@ import {
   Sparkles,
   Clock,
   Ban,
+  Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/layout/shell";
@@ -22,11 +23,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DeptBadge, StatusBadge, PriorityBar } from "@/components/rail/bits";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DeptBadge, StatusBadge, PriorityBar, ControlStatusBadge, WorkStatusBadge } from "@/components/rail/bits";
 import { useRailStore } from "@/lib/rail/store";
 import { formatSpan, minToHhmm, weekday, formatHours } from "@/lib/rail/format";
 import { scoreBreakdown } from "@/lib/rail/scoring";
-import { WEEK_START, type Task, type Line } from "@/lib/rail/types";
+import { WEEK_START, type Task, type Line, type PlannedBlock } from "@/lib/rail/types";
 
 const searchSchema = z.object({
   tab: z.enum(["overview", "work", "possessions", "requisitions"]).catch("overview").optional(),
@@ -56,16 +58,28 @@ function SntMain({ currentTab }: { currentTab: string }) {
   const blocks = useRailStore((s) => s.blocks);
   const addTask = useRailStore((s) => s.addTask);
   const addAuditLog = useRailStore((s) => s.addAuditLog);
+  const setWorkStatus = useRailStore((s) => s.setWorkStatus);
 
   const sntTasks = tasks.filter((t) => t.department === "SNT");
   const sntBlocks = blocks.filter(
     (b) => b.departments.includes("SNT") && b.date >= WEEK_START
   );
   const sanctionedSntBlocks = sntBlocks.filter((b) => b.status === "APPROVED");
+  const pendingSntBlocks = sntBlocks.filter((b) => b.status === "PENDING");
 
   const pendingTasks = sntTasks.filter((t) => t.status === "OPEN");
   const plannedTasks = sntTasks.filter((t) => t.status === "PLANNED");
   const criticalTasks = sntTasks.filter((t) => t.severity >= 4 && t.status !== "DONE");
+
+  // Filter state for possessions tab
+  const [possessionFilter, setPossessionFilter] = useState<"ALL" | "SANCTIONED" | "PENDING">("ALL");
+  const [completingBlock, setCompletingBlock] = useState<PlannedBlock | null>(null);
+
+  const displayedPossessions = sntBlocks.filter((b) => {
+    if (possessionFilter === "SANCTIONED") return b.status === "APPROVED";
+    if (possessionFilter === "PENDING") return b.status === "PENDING";
+    return true;
+  });
 
   // Selected task for drawer
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -308,7 +322,10 @@ function SntMain({ currentTab }: { currentTab: string }) {
                           <DeptBadge key={d} d={d} />
                         ))}
                       </div>
-                      <StatusBadge status={b.status} />
+                      <div className="flex items-center gap-1.5">
+                        <ControlStatusBadge status={b.status} />
+                        <WorkStatusBadge status={b.workStatus} />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -449,20 +466,52 @@ function SntMain({ currentTab }: { currentTab: string }) {
       {/* Tab 3: POSSESSIONS & DISCONNECTIONS */}
       {currentTab === "possessions" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h1 className="font-display text-2xl md:text-3xl font-bold">Possessions &amp; Disconnections</h1>
               <p className="text-xs text-muted">
                 Combined operational board for S&amp;T disconnections, reconnections, and multi-department possessions
               </p>
             </div>
-            <span className="font-mono text-xs text-muted rounded bg-surface-2 px-2.5 py-1 border border-border">
-              {sntBlocks.length} Active S&amp;T Possessions
-            </span>
+            <div className="flex items-center gap-1.5 rounded-lg bg-surface-2 p-1 border border-border">
+              <button
+                type="button"
+                onClick={() => setPossessionFilter("ALL")}
+                className={`rounded-md px-2.5 py-1 text-xs font-mono transition-colors ${
+                  possessionFilter === "ALL"
+                    ? "bg-surface font-semibold text-fg shadow-sm border border-border"
+                    : "text-muted hover:text-fg"
+                }`}
+              >
+                All ({sntBlocks.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPossessionFilter("SANCTIONED")}
+                className={`rounded-md px-2.5 py-1 text-xs font-mono transition-colors ${
+                  possessionFilter === "SANCTIONED"
+                    ? "bg-surface font-semibold text-sky-400 shadow-sm border border-border"
+                    : "text-muted hover:text-sky-400"
+                }`}
+              >
+                Sanctioned ({sanctionedSntBlocks.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPossessionFilter("PENDING")}
+                className={`rounded-md px-2.5 py-1 text-xs font-mono transition-colors ${
+                  possessionFilter === "PENDING"
+                    ? "bg-surface font-semibold text-amber-400 shadow-sm border border-border"
+                    : "text-muted hover:text-amber-400"
+                }`}
+              >
+                Pending Sanction ({pendingSntBlocks.length})
+              </button>
+            </div>
           </div>
 
           <div className="space-y-3">
-            {sntBlocks.map((b) => (
+            {displayedPossessions.map((b) => (
               <div
                 key={b.id}
                 className="rounded-xl border border-border bg-surface p-4 space-y-3 hover:border-sky-500/40 transition-colors"
@@ -473,7 +522,10 @@ function SntMain({ currentTab }: { currentTab: string }) {
                     <span className="font-mono text-xs text-muted">
                       {weekday(b.date)} {minToHhmm(b.startMin)}–{minToHhmm(b.endMin)}
                     </span>
-                    <StatusBadge status={b.status} />
+                    <div className="flex items-center gap-1.5">
+                      <ControlStatusBadge status={b.status} />
+                      <WorkStatusBadge status={b.workStatus} />
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono text-muted">
@@ -514,7 +566,14 @@ function SntMain({ currentTab }: { currentTab: string }) {
 
                   <div className="rounded-lg bg-surface-2 p-2.5 border border-border">
                     <span className="text-muted block text-[11px]">Reconnection Status</span>
-                    <span className="text-muted mt-1 block">Scheduled on completion</span>
+                    {b.workStatus === "COMPLETED" ? (
+                      <span className="text-emerald-400 font-bold mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="size-3.5" />
+                        Reconnected (Normality Restored)
+                      </span>
+                    ) : (
+                      <span className="text-muted mt-1 block">Scheduled on completion</span>
+                    )}
                   </div>
 
                   <div className="rounded-lg bg-surface-2 p-2.5 border border-border flex items-center justify-end">
@@ -529,9 +588,124 @@ function SntMain({ currentTab }: { currentTab: string }) {
                     </Button>
                   </div>
                 </div>
+
+                {/* S&T Work Completion Lifecycle */}
+                {b.status === "APPROVED" && (
+                  <div className="rounded-lg bg-surface-2 p-3 border border-border/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    {b.workStatus === "COMPLETED" ? (
+                      <div className="flex items-center gap-2 text-xs text-emerald-400">
+                        <CheckCircle2 className="size-4 shrink-0" />
+                        <span>
+                          <strong>Signaling Work Completed &amp; Reconnected:</strong> Verified by {b.completedBy?.name || "SSE/Signal"} ({b.completedBy?.department || "SNT"})
+                          {b.completedAt && ` · ${new Date(b.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-xs text-muted flex items-center gap-2">
+                          {b.workStatus === "ACTIVE" ? (
+                            <span className="flex items-center gap-1.5 text-sky-400 font-mono font-medium">
+                              <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
+                              Point / Signal Maintenance In Progress (ACTIVE)
+                            </span>
+                          ) : (
+                            <span className="font-mono text-muted">
+                              Sanctioned by Control. Ready for Disconnection and maintenance.
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {(!b.workStatus || b.workStatus === "NOT_STARTED") && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setWorkStatus(b.id, "ACTIVE", session ? { role: session.role, department: session.department, name: session.name } : undefined);
+                                toast.info(`S&T work started on possession ${b.id}. Work Status is now ACTIVE.`);
+                              }}
+                              className="text-xs gap-1.5 h-8 font-mono"
+                            >
+                              <Play className="size-3 text-sky-400 fill-sky-400" />
+                              Start Work
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            onClick={() => setCompletingBlock(b)}
+                            className="text-xs gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-mono"
+                          >
+                            <CheckCircle2 className="size-3.5" />
+                            Mark Work Completed
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
+
+          {/* Confirmation Dialog for S&T Work Completion */}
+          <Dialog open={!!completingBlock} onOpenChange={(open) => !open && setCompletingBlock(null)}>
+            <DialogContent className="max-w-md">
+              <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+                <CheckCircle2 className="size-5 text-emerald-400" />
+                Complete Signaling Work &amp; Reconnect?
+              </DialogTitle>
+              <DialogDescription className="space-y-3 pt-2 text-sm text-muted">
+                <p>
+                  You are confirming that signaling / interlocking maintenance for possession{" "}
+                  <strong className="text-fg font-mono">{completingBlock?.id}</strong> —{" "}
+                  <span className="text-fg font-medium">
+                    km {completingBlock?.fromKm}–{completingBlock?.toKm}
+                  </span>{" "}
+                  has been completed and gear is ready for reconnection (T-351 Part II).
+                </p>
+                <div className="rounded-lg bg-surface-2 p-3 border border-border text-xs space-y-1 font-mono">
+                  <div className="flex justify-between">
+                    <span className="text-muted">Control Status:</span>
+                    <span className="text-emerald-400 font-semibold">SANCTIONED (Preserved)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">New Work Status:</span>
+                    <span className="text-emerald-400 font-semibold">COMPLETED</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Responsible Officer:</span>
+                    <span className="text-fg">{session?.name || "Anil Kumar Sharma"} ({session?.department || "SNT"})</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted">
+                  This action marks associated S&amp;T tasks as{" "}
+                  <strong className="text-fg">DONE</strong> and registers reconnection in the audit trail.
+                </p>
+              </DialogDescription>
+              <div className="flex justify-end gap-2 pt-4 border-t border-border mt-4">
+                <Button variant="outline" size="sm" onClick={() => setCompletingBlock(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                  onClick={() => {
+                    if (completingBlock) {
+                      setWorkStatus(
+                        completingBlock.id,
+                        "COMPLETED",
+                        session ? { role: session.role, department: session.department, name: session.name } : undefined
+                      );
+                      toast.success(`S&T work on ${completingBlock.id} completed and reconnected!`);
+                      setCompletingBlock(null);
+                    }
+                  }}
+                >
+                  <CheckCircle2 className="size-4" />
+                  Mark as Completed
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 

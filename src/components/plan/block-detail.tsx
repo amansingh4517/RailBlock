@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { DeptBadge, StatusBadge } from "@/components/rail/bits";
+import { CheckCircle2 } from "lucide-react";
+import { DeptBadge, StatusBadge, ControlStatusBadge, WorkStatusBadge } from "@/components/rail/bits";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { WINDOWS } from "@/lib/rail/data";
@@ -38,15 +39,33 @@ export function BlockDetail() {
         <p className="mt-1 text-sm text-muted">
           {formatSpan(block.fromKm, block.toKm)} · {lineLabel(block.line)} · {formatHours(block.durationHours)}
         </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <StatusBadge status={block.status} />
-          {block.departments.map((d) => (
-            <DeptBadge key={d} d={d} />
-          ))}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-mono text-muted uppercase">Control:</span>
+            <ControlStatusBadge status={block.status} />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-mono text-muted uppercase">Work:</span>
+            <WorkStatusBadge status={block.workStatus} />
+          </div>
+          <div className="flex gap-1 ml-1">
+            {block.departments.map((d) => (
+              <DeptBadge key={d} d={d} />
+            ))}
+          </div>
           {block.bundled ? (
             <span className="text-[11px] uppercase tracking-wider text-ok">Bundled</span>
           ) : null}
         </div>
+        {block.workStatus === "COMPLETED" && (
+          <div className="mt-3 rounded-lg bg-emerald-950/30 border border-emerald-500/30 p-2.5 flex items-center gap-2 text-xs text-emerald-400">
+            <CheckCircle2 className="size-4 shrink-0" />
+            <span>
+              <strong>Maintenance Completed:</strong> Verified by {block.completedBy?.name || "Maintenance Staff"} ({block.completedBy?.department || "Dept"})
+              {block.completedAt && ` on ${new Date(block.completedAt).toLocaleDateString()} at ${new Date(block.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+            </span>
+          </div>
+        )}
       </header>
 
       <p className="text-sm text-muted">

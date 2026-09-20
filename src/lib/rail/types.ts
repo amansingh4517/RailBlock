@@ -13,6 +13,7 @@ export type TaskStatus =
   | "DONE"
   | "DEFERRED";
 export type BlockStatus = "DRAFT" | "PENDING" | "APPROVED" | "MODIFIED" | "REJECTED";
+export type WorkStatus = "NOT_STARTED" | "ACTIVE" | "COMPLETED";
 export type WindowKind = "NIGHT" | "MIDDAY" | "MEGA" | "SHADOW";
 export type Weather = "CLEAR" | "RAIN" | "FOG" | "HEAT";
 export type AssetType =
@@ -114,6 +115,14 @@ export interface PlannedBlock {
   departments: Department[];
   bundled: boolean;
   status: BlockStatus;
+  workStatus?: WorkStatus;
+  startedAt?: string;
+  completedAt?: string;
+  completedBy?: {
+    role: Role;
+    department?: string;
+    name?: string;
+  };
   disruptionMin: number;
   durationHours: number;
   note?: string;

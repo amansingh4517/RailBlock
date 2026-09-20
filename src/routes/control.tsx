@@ -36,7 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DeptBadge, StatusBadge } from "@/components/rail/bits";
+import { DeptBadge, StatusBadge, ControlStatusBadge, WorkStatusBadge } from "@/components/rail/bits";
 import { BlockDetail } from "@/components/plan/block-detail";
 import { MonthBoard, WeekGantt } from "@/components/plan/gantt";
 import { RequestDrawer } from "@/components/control/request-drawer";
@@ -991,7 +991,10 @@ function ControlMain({ currentTab }: { currentTab: string }) {
                                   <span className="font-mono text-xs text-muted">
                                     {weekday(b.date)} {minToHhmm(b.startMin)}–{minToHhmm(b.endMin)}
                                   </span>
-                                  <StatusBadge status={b.status} />
+                                  <div className="flex items-center gap-1.5">
+                                    <ControlStatusBadge status={b.status} />
+                                    <WorkStatusBadge status={b.workStatus} />
+                                  </div>
                                   {b.bundled && (
                                     <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono font-bold text-primary">
                                       BUNDLED ({b.departments.length} DEPTS)
@@ -1240,7 +1243,10 @@ function ControlMain({ currentTab }: { currentTab: string }) {
                         {b.taskIds.join(", ")}
                       </td>
                       <td className="px-3 py-2.5">
-                        <StatusBadge status={b.status} />
+                        <div className="flex items-center gap-1.5">
+                          <ControlStatusBadge status={b.status} />
+                          <WorkStatusBadge status={b.workStatus} />
+                        </div>
                       </td>
                       <td className="px-3 py-2.5 text-right font-medium text-fg">
                         {b.disruptionMin}m
