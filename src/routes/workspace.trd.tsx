@@ -68,7 +68,7 @@ function TrdMain({ currentTab }: { currentTab: string }) {
     (b) => b.departments.includes("TRD") && b.date >= WEEK_START
   );
   const sanctionedTrdBlocks = trdBlocks.filter((b) => b.status === "APPROVED");
-  const pendingTrdBlocks = trdBlocks.filter((b) => b.status === "PENDING");
+  const pendingTrdBlocks = trdBlocks.filter((b) => b.status !== "APPROVED" && b.status !== "REJECTED");
 
   const pendingTasks = trdTasks.filter((t) => t.status === "OPEN");
   const plannedTasks = trdTasks.filter((t) => t.status === "PLANNED");
@@ -80,7 +80,7 @@ function TrdMain({ currentTab }: { currentTab: string }) {
 
   const displayedPossessions = trdBlocks.filter((b) => {
     if (possessionFilter === "SANCTIONED") return b.status === "APPROVED";
-    if (possessionFilter === "PENDING") return b.status === "PENDING";
+    if (possessionFilter === "PENDING") return b.status !== "APPROVED" && b.status !== "REJECTED";
     return true;
   });
 

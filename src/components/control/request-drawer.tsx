@@ -36,6 +36,7 @@ export function RequestDrawer({
   const tasks = useRailStore((s) => s.tasks);
   const blocks = useRailStore((s) => s.blocks);
   const updateTaskStatus = useRailStore((s) => s.updateTaskStatus);
+  const sanctionTaskPossession = useRailStore((s) => s.sanctionTaskPossession);
 
   // Rejection confirmation dialog state
   const [rejecting, setRejecting] = useState(false);
@@ -63,6 +64,13 @@ export function RequestDrawer({
   function handleAccept() {
     updateTaskStatus(task!.id, "ACCEPTED", "Accepted for planning and multi-department bundling");
     toast.success(`Request ${task!.id} accepted for corridor planning`);
+    onClose();
+  }
+
+  function handleSanctionPossession() {
+    if (!task) return;
+    const blockId = sanctionTaskPossession(task.id, "Sanctioned via Control Request Drawer");
+    toast.success(`Demand ${task.id} approved & Possession ${blockId} SANCTIONED! Forwarded to ${task.department} execution queue.`);
     onClose();
   }
 
@@ -353,43 +361,63 @@ export function RequestDrawer({
                 Close Drawer
               </Button>
 
-              {/* Status-driven Review Actions */}
-              {(task.status === "NEW" || task.status === "OPEN") && (
-                <Button
-                  size="sm"
-                  onClick={handleStartReview}
-                  className="gap-1.5 text-xs"
-                >
-                  <Clock className="size-4" />
-                  <span>Start Review</span>
-                </Button>
-              )}
-
-              {task.status === "UNDER_REVIEW" && (
-                <div className="flex items-center gap-2">
+              {/* Status-driven Review & Sanction Actions */}
+              {(task.status === "NEW" || task.status === "OPEN" || task.status === "UNDER_REVIEW") && (
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     variant="danger"
                     size="sm"
                     onClick={() => setRejecting(true)}
                     className="text-xs"
                   >
-                    Reject Request
+                    Reject
+                  </Button>
+                  {task.status !== "UNDER_REVIEW" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleStartReview}
+                      className="gap-1 text-xs"
+                    >
+                      <Clock className="size-3.5" />
+                      <span>Review</span>
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleAccept}
+                    className="gap-1 text-xs"
+                  >
+                    Accept for Planning
                   </Button>
                   <Button
                     size="sm"
-                    onClick={handleAccept}
-                    className="gap-1.5 text-xs"
+                    onClick={handleSanctionPossession}
+                    className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-sm"
                   >
                     <CheckCircle2 className="size-4" />
-                    <span>Accept for Planning</span>
+                    <span>Accept &amp; Sanction Possession</span>
                   </Button>
                 </div>
               )}
 
               {(task.status === "ACCEPTED" || task.status === "PLANNED") && (
-                <div className="flex items-center gap-2 text-xs font-mono text-emerald-400">
-                  <CheckCircle2 className="size-4" />
-                  <span>Accepted for Corridor Planning</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-mono text-emerald-400">
+                    <CheckCircle2 className="size-4" />
+                    <span>Demand Accepted</span>
+                  </div>
+                  {resultingBlock?.status !== "APPROVED" && (
+                    <Button
+                      size="sm"
+                      onClick={handleSanctionPossession}
+                      className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                    >
+                      <CheckCircle2 className="size-4" />
+                      <span>Sanction Possession Block</span>
+                    </Button>
+                  )}
                 </div>
               )}
 
