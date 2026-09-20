@@ -19,7 +19,7 @@ function applyPlan(scenario: Scenario): { blocks: ReturnType<typeof optimize>; t
   const planned = new Set(blocks.flatMap((b) => b.taskIds));
   const live = activeTasks(scenario).map((t) => ({
     ...t,
-    status: (planned.has(t.id) ? "PLANNED" : t.status) as TaskStatus,
+    status: (planned.has(t.id) ? "ACCEPTED" : t.status) as TaskStatus,
   }));
   const done = TASKS.filter((t) => t.status === "DONE");
   const tasks = [...live.filter((t) => t.id !== "T-ENGG-EMG" || scenario.emergencyDefect), ...done];

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CorridorRibbon } from "@/components/corridor/ribbon";
+import { GisCorridorMap } from "@/components/corridor/gis-map";
 import { Shell } from "@/components/layout/shell";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,9 @@ import { DeptBadge, StatusBadge } from "@/components/rail/bits";
 import { BlockDetail } from "@/components/plan/block-detail";
 import { MonthBoard, WeekGantt } from "@/components/plan/gantt";
 import { RequestDrawer } from "@/components/control/request-drawer";
+import { GovernancePipelineStrip } from "@/components/control/governance-pipeline";
+import { AssetAvailabilityKpis } from "@/components/control/asset-kpis";
+import { EmergencySimulator } from "@/components/control/emergency-simulator";
 import { askControlBrief } from "@/lib/ai/briefing";
 import { addDays, formatHours, formatSpan, minToHhmm, weekday, lineLabel } from "@/lib/rail/format";
 import { localBriefing, computeKpis } from "@/lib/rail/kpis";
@@ -116,13 +120,13 @@ function ControlMain({ currentTab }: { currentTab: string }) {
   const brief = grokBrief ?? localBriefing(kpis, blocks, tasks, scenario);
   const warnings = findConflicts(blocks, tasks).filter((c) => c.severity === "warn");
 
-  // Categorize for Needs Attention
+  // Categorize for Needs Attention (Synchronized across Control Desk & Requests/Approvals)
   const unreviewedRequests = tasks.filter(
-    (t) => t.status === "NEW" || t.status === "OPEN" || t.status === "UNDER_REVIEW"
+    (t) => t.status === "NEW" || t.status === "OPEN" || t.status === "UNDER_REVIEW" || t.status === "ACCEPTED"
   );
   const pendingBlocks = week.filter((b) => b.status === "PENDING" || b.status === "DRAFT");
   const modifiedBlocks = week.filter((b) => b.status === "MODIFIED");
-  const needsAttentionCount = unreviewedRequests.length + pendingBlocks.length + modifiedBlocks.length;
+  const needsAttentionCount = pendingBlocks.length + unreviewedRequests.length + modifiedBlocks.length;
 
   // Gantt view mode
   const [ganttView, setGanttView] = useState<"week" | "month">("week");
@@ -134,7 +138,7 @@ function ControlMain({ currentTab }: { currentTab: string }) {
   function handleRunOptimizer() {
     setOptimizing(true);
     setTimeout(() => {
-      const newBlocks = optimize(scenario, tasks);
+      const newBlocks = optimize(scenario);
       const newKpis = computeKpis(newBlocks, scenario, tasks);
       setOptimizedResult({
         blocks: newBlocks,
@@ -365,7 +369,7 @@ function ControlMain({ currentTab }: { currentTab: string }) {
             </div>
 
             {unreviewedRequests.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border p-8 text-center space-y-1.5">
+              <div className="rounded-xl border border-dashed border-border p-6 text-center space-y-1.5">
                 <CheckCircle2 className="size-6 text-emerald-400 mx-auto" />
                 <p className="font-medium text-sm text-fg">No Unreviewed Requests</p>
                 <p className="text-xs text-muted">All incoming departmental demands have been processed.</p>
@@ -428,7 +432,77 @@ function ControlMain({ currentTab }: { currentTab: string }) {
                 </table>
               </div>
             )}
+
+            {/* Sub-section: Proposed Corridor Possessions Awaiting Sanction */}
+            {pendingBlocks.length > 0 && (
+              <div className="pt-4 border-t border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="size-4 text-emerald-400" />
+                    <h3 className="font-display text-sm font-bold text-fg">
+                      Corridor Possessions Awaiting Formal Sanction ({pendingBlocks.length})
+                    </h3>
+                  </div>
+                  <Button asChild size="sm" variant="ghost" className="text-xs text-primary gap-1">
+                    <Link to="/control" search={{ tab: "approvals", status: "proposed" }}>
+                      <span>View all {pendingBlocks.length} in Requests &amp; Approvals</span>
+                      <ArrowRight className="size-3.5" />
+                    </Link>
+                  </Button>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {pendingBlocks.slice(0, 3).map((block) => (
+                    <div
+                      key={block.id}
+                      className="rounded-lg border border-border bg-surface-2 p-3 space-y-2 hover:border-primary/40 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-bold text-fg">{block.id}</span>
+                        <StatusBadge status={block.status} />
+                      </div>
+                      <p className="font-mono text-xs text-muted">
+                        {weekday(block.date)} {minToHhmm(block.startMin)}–{minToHhmm(block.endMin)}
+                      </p>
+                      <p className="text-xs text-fg">
+                        Span: <strong className="font-mono">{formatSpan(block.fromKm, block.toKm)}</strong> ({block.line})
+                      </p>
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {block.departments.map((d) => (
+                          <DeptBadge key={d} d={d} />
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs flex-1 bg-emerald-600 hover:bg-emerald-500"
+                          onClick={() => {
+                            setBlockStatus(block.id, "APPROVED");
+                            toast.success(`Possession ${block.id} sanctioned`);
+                          }}
+                        >
+                          Approve Block
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setRejectingBlockId(block.id);
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
+
+          {/* ── Feature 4: Asset Availability KPI Cards ── */}
+          <AssetAvailabilityKpis kpis={kpis} blocks={week} />
 
           {/* Operational KPI Strip (Placed below actionable requests) */}
           <section className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border md:grid-cols-5">
@@ -438,6 +512,12 @@ function ControlMain({ currentTab }: { currentTab: string }) {
             <Kpi label="High-priority" value={`${kpis.highPriorityCoverage.toFixed(0)}%`} hint="covered this solve" />
             <Kpi label="Detention" value={`${kpis.detentionMin}`} hint="train-minutes" className="col-span-2 md:col-span-1" />
           </section>
+
+          {/* ── Feature 1: GIS Interactive Corridor Map ── */}
+          <GisCorridorMap blocks={week} />
+
+          {/* ── Feature 3: Governance Pipeline Strip ── */}
+          <GovernancePipelineStrip blocks={week} />
 
           {/* Corridor Track Ribbon */}
           <CorridorRibbon blocks={week} highlightSpan={highlightSpan} />
@@ -703,6 +783,9 @@ function ControlMain({ currentTab }: { currentTab: string }) {
               )}
             </section>
           </div>
+
+          {/* ── Feature 2: Emergency Overrun Simulator ── */}
+          <EmergencySimulator />
         </div>
       )}
 
@@ -1326,7 +1409,7 @@ function ControlMain({ currentTab }: { currentTab: string }) {
           setDrawerTask(null);
           setHighlightSpan(undefined);
         }}
-        onSelectBlock={(bId) => {
+        onSelectBlock={(bId: string) => {
           selectBlock(bId);
           navigate({ to: "/control", search: { tab: "plan" } });
           setDrawerTask(null);

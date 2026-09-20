@@ -96,7 +96,7 @@ export function BlockDetail() {
         task={drawerTask}
         isOpen={Boolean(drawerTask)}
         onClose={() => setDrawerTask(null)}
-        onSelectBlock={(bId) => selectBlock(bId)}
+        onSelectBlock={(bId: string) => selectBlock(bId)}
       />
 
       <div className="flex flex-wrap gap-2">

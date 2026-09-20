@@ -58,7 +58,7 @@ function NavLinks({
   ).length;
   const pendingBlocks = blocks.filter((b) => b.status === "PENDING" || b.status === "DRAFT").length;
   const modifiedBlocks = blocks.filter((b) => b.status === "MODIFIED").length;
-  const attentionCount = unreviewedRequests + pendingBlocks + modifiedBlocks;
+  const attentionCount = pendingBlocks + unreviewedRequests + modifiedBlocks;
 
   return (
     <>
