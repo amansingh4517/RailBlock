@@ -10,7 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CORRIDOR_NAME, DIVISION, type Role } from "@/lib/rail/types";
+import { CORRIDOR_NAME, DIVISION, CURRENT_WEEK_HORIZON, type Role } from "@/lib/rail/types";
 
 export const Route = createFileRoute("/access")({
   component: AccessPortalPage,
@@ -154,7 +154,7 @@ function AccessPortalPage() {
           <div className="hidden items-center gap-4 sm:flex text-right text-xs">
             <div>
               <span className="text-muted block">Corridor Planning Horizon</span>
-              <span className="font-mono font-medium text-fg">07 – 13 Sep 2026</span>
+              <span className="font-mono font-medium text-fg">{CURRENT_WEEK_HORIZON}</span>
             </div>
             <div className="h-6 w-px bg-border" />
             <div className="flex items-center gap-1.5 text-emerald-400">

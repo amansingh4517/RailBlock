@@ -34,7 +34,7 @@ import { useRailStore } from "@/lib/rail/store";
 import { RESOURCES } from "@/lib/rail/data";
 import { formatSpan, minToHhmm, weekday, formatHours, severityLabel } from "@/lib/rail/format";
 import { priorityScore, scoreBreakdown } from "@/lib/rail/scoring";
-import { WEEK_START, type Task, type Line, type TaskStatus, type PlannedBlock } from "@/lib/rail/types";
+import { WEEK_START, WEEK_END, type Task, type Line, type TaskStatus, type PlannedBlock } from "@/lib/rail/types";
 
 const searchSchema = z.object({
   tab: z.enum(["overview", "work", "possessions", "requisitions"]).catch("overview").optional(),
@@ -197,8 +197,8 @@ function EngineeringMain({ currentTab }: { currentTab: string }) {
       trafficImpact: sev >= 4 ? 4 : 2,
       safetyRisk: sev >= 4 ? 5 : 3,
       resourceIds: [reqMachine],
-      earliest: "2026-09-07",
-      latest: "2026-09-13",
+      earliest: WEEK_START,
+      latest: WEEK_END,
       canBundle: true,
       status: "NEW",
     };

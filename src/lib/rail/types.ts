@@ -196,8 +196,10 @@ export const DEFAULT_SCENARIO: Scenario = {
   sundayMega: true,
 };
 
-export const WEEK_START = "2026-09-07";
-export const HORIZON_END = "2026-09-27";
+export const WEEK_START = "2026-09-21";
+export const WEEK_END = "2026-09-27";
+export const HORIZON_END = "2026-10-11";
+export const CURRENT_WEEK_HORIZON = "21 – 27 Sep 2026";
 export const CORRIDOR_KM = 199;
 export const DIVISION = "Northern Railway · Delhi Division";
 export const CORRIDOR_NAME = "New Delhi – Ambala Cantt";

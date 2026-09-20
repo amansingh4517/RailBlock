@@ -47,7 +47,7 @@ import { localBriefing, computeKpis } from "@/lib/rail/kpis";
 import { findConflicts, optimize } from "@/lib/rail/optimizer";
 import { priorityScore } from "@/lib/rail/scoring";
 import { useRailStore } from "@/lib/rail/store";
-import { WEEK_START, type Weather, type Task, type PlannedBlock } from "@/lib/rail/types";
+import { WEEK_START, CURRENT_WEEK_HORIZON, type Weather, type Task, type PlannedBlock } from "@/lib/rail/types";
 
 const searchSchema = z.object({
   tab: z.enum(["control-desk", "approvals", "plan", "reports", "optimization"]).catch("control-desk").optional(),
@@ -225,7 +225,7 @@ function ControlMain({ currentTab }: { currentTab: string }) {
                 Operational Command
               </h1>
               <p className="font-mono text-xs text-muted mt-1">
-                Horizon: 07 – 13 Sep 2026 · Double Line (UP / DN) · High-Density Trunk Route
+                Horizon: {CURRENT_WEEK_HORIZON} · Double Line (UP / DN) · High-Density Trunk Route
               </p>
             </div>
 
@@ -1063,10 +1063,10 @@ function ControlMain({ currentTab }: { currentTab: string }) {
             /* Monthly View: Grouped by Week */
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                { weekNum: 1, label: "Week 1 (07 – 13 Sep 2026)", blocks: week, hours: 31.5 },
-                { weekNum: 2, label: "Week 2 (14 – 20 Sep 2026)", blocks: week.slice(0, 5), hours: 24.0 },
-                { weekNum: 3, label: "Week 3 (21 – 27 Sep 2026)", blocks: week.slice(2, 6), hours: 28.5 },
-                { weekNum: 4, label: "Week 4 (28 Sep – 04 Oct 2026)", blocks: week.slice(1, 4), hours: 19.0 },
+                { weekNum: 1, label: `Week 1 (${CURRENT_WEEK_HORIZON}) [Current]`, blocks: week, hours: 31.5 },
+                { weekNum: 2, label: "Week 2 (28 Sep – 04 Oct 2026)", blocks: week.slice(0, 5), hours: 24.0 },
+                { weekNum: 3, label: "Week 3 (05 – 11 Oct 2026)", blocks: week.slice(2, 6), hours: 28.5 },
+                { weekNum: 4, label: "Week 4 (12 – 18 Oct 2026)", blocks: week.slice(1, 4), hours: 19.0 },
               ].map((w) => (
                 <div key={w.weekNum} className="rounded-2xl border border-border bg-surface p-5 space-y-3">
                   <div className="flex items-center justify-between border-b border-border pb-2.5">

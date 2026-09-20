@@ -14,7 +14,7 @@ import { type ReactNode, useState } from "react";
 import { RailMark } from "@/components/rail/bits";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { CORRIDOR_NAME, DIVISION, ROLE_LABEL, type Role } from "@/lib/rail/types";
+import { CORRIDOR_NAME, DIVISION, ROLE_LABEL, CURRENT_WEEK_HORIZON, type Role } from "@/lib/rail/types";
 import { getRoleDefaultPath } from "@/lib/rail/auth";
 import { getNavForRole, type RoleNavItem } from "@/lib/rail/navigation";
 import { useRailStore } from "@/lib/rail/store";
@@ -163,7 +163,7 @@ export function Shell({
           <div className="ml-auto hidden text-right text-xs text-muted xl:block font-mono">
             <span>{CORRIDOR_NAME} (NDLS 0 — UMB 199)</span>
             <span className="mt-0.5 block tabular text-fg font-medium">
-              Horizon: 07 – 13 Sep 2026
+              Horizon: {CURRENT_WEEK_HORIZON}
             </span>
           </div>
 

@@ -33,7 +33,7 @@ import { Label } from "@/components/ui/label";
 import { RequestDrawer } from "@/components/control/request-drawer";
 import { getAllUsers, registerUser, revokeUser, type PrototypeUser } from "@/lib/rail/auth";
 import { useRailStore } from "@/lib/rail/store";
-import { ROLE_LABEL, type Role, type Task } from "@/lib/rail/types";
+import { ROLE_LABEL, WEEK_START, WEEK_END, CURRENT_WEEK_HORIZON, type Role, type Task } from "@/lib/rail/types";
 
 const searchSchema = z.object({
   tab: z.enum(["users", "config", "data", "audit"]).catch("users").optional(),
@@ -186,8 +186,8 @@ function AdminMain({ currentTab }: { currentTab: string }) {
       trafficImpact: 65,
       safetyRisk: 82,
       resourceIds: ["r-pwm-pnp"],
-      earliest: "2026-09-07",
-      latest: "2026-09-13",
+      earliest: WEEK_START,
+      latest: WEEK_END,
       canBundle: true,
       status: "OPEN",
     };
@@ -567,7 +567,7 @@ function AdminMain({ currentTab }: { currentTab: string }) {
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-border">
                   <span className="text-muted">Planning Horizon:</span>
-                  <span className="text-fg font-bold">07 – 13 Sep 2026 (7 Days)</span>
+                  <span className="text-fg font-bold">{CURRENT_WEEK_HORIZON} (7 Days)</span>
                 </div>
                 <div className="flex items-center justify-between py-2">
                   <span className="text-muted">Optimization Algorithm:</span>

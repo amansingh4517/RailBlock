@@ -32,7 +32,7 @@ import { DeptBadge, StatusBadge, PriorityBar, ControlStatusBadge, WorkStatusBadg
 import { useRailStore } from "@/lib/rail/store";
 import { formatSpan, minToHhmm, weekday, formatHours } from "@/lib/rail/format";
 import { scoreBreakdown } from "@/lib/rail/scoring";
-import { WEEK_START, type Task, type Line, type PlannedBlock } from "@/lib/rail/types";
+import { WEEK_START, WEEK_END, type Task, type Line, type PlannedBlock } from "@/lib/rail/types";
 
 const searchSchema = z.object({
   tab: z.enum(["overview", "work", "power-blocks", "requisitions"]).catch("overview").optional(),
@@ -181,8 +181,8 @@ function TrdMain({ currentTab }: { currentTab: string }) {
       trafficImpact: sev >= 4 ? 75 : 45,
       safetyRisk: sev >= 4 ? 85 : 55,
       resourceIds: ["Tower Wagon TW-04"],
-      earliest: "2026-09-07",
-      latest: "2026-09-13",
+      earliest: WEEK_START,
+      latest: WEEK_END,
       canBundle: true,
       status: "NEW",
     };

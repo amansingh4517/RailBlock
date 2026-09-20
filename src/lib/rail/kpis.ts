@@ -1,5 +1,5 @@
 import { WINDOWS } from "./data";
-import { WEEK_START, type Kpis, type PlannedBlock, type Scenario, type Task } from "./types";
+import { WEEK_START, WEEK_END, CURRENT_WEEK_HORIZON, type Kpis, type PlannedBlock, type Scenario, type Task } from "./types";
 import { activeTasks, uncoordinatedHours } from "./optimizer";
 import { isHighPriority, priorityScore } from "./scoring";
 
@@ -15,12 +15,12 @@ export function computeKpis(blocks: PlannedBlock[], scenario: Scenario, allTasks
   const gang = scenario.gangAvailabilityPct / 100;
   const high = tasks.filter((t) => isHighPriority(priorityScore(t, gang)));
   const highCovered = high.filter((t) => plannedIds.has(t.id)).length;
-  const weekBlocks = liveBlocks.filter((b) => b.date >= WEEK_START && b.date <= "2026-09-13");
+  const weekBlocks = liveBlocks.filter((b) => b.date >= WEEK_START && b.date <= WEEK_END);
   const weekHours = weekBlocks.reduce((s, b) => s + b.durationHours, 0);
   const corridorHours = 24 * 7 * 2;
   const assetAvailability = Math.max(82, 100 - (weekHours / corridorHours) * 100 * 3.4);
   const detentionMin = liveBlocks.reduce((s, b) => s + b.disruptionMin, 0);
-  const weekWindows = WINDOWS.filter((w) => w.date >= WEEK_START && w.date <= "2026-09-13");
+  const weekWindows = WINDOWS.filter((w) => w.date >= WEEK_START && w.date <= WEEK_END);
   const used = new Set(weekBlocks.map((b) => b.windowId));
 
   return {
@@ -39,7 +39,7 @@ export function computeKpis(blocks: PlannedBlock[], scenario: Scenario, allTasks
 }
 
 export function localBriefing(kpis: Kpis, blocks: PlannedBlock[], tasks: Task[], scenario: Scenario) {
-  const week = blocks.filter((b) => b.date >= WEEK_START && b.date <= "2026-09-13" && b.status !== "REJECTED");
+  const week = blocks.filter((b) => b.date >= WEEK_START && b.date <= WEEK_END && b.status !== "REJECTED");
   const bundled = week.filter((b) => b.departments.length > 1).length;
   const top = [...tasks]
     .filter((t) => t.status === "OPEN")
@@ -61,7 +61,7 @@ export function localBriefing(kpis: Kpis, blocks: PlannedBlock[], tasks: Task[],
     : "";
 
   return [
-    `Delhi Division control order for NDLS–UMB, week of 7 Sep 2026.`,
+    `Delhi Division control order for NDLS–UMB, week of ${CURRENT_WEEK_HORIZON}.`,
     `${week.length} integrated blocks, ${kpis.blockHours.toFixed(1)}h of possession versus ${kpis.uncoordinatedHours.toFixed(1)}h if departments ran separately (${kpis.hoursSavedPct.toFixed(0)}% fewer block hours).`,
     `${bundled} multi-department possessions; bundling rate ${kpis.bundlingRate.toFixed(0)}%. Asset availability modelled at ${kpis.assetAvailability.toFixed(1)}%.`,
     `High-priority coverage ${kpis.highPriorityCoverage.toFixed(0)}%. Estimated detention ${kpis.detentionMin} train-minutes.`,
