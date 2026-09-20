@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { Shell } from "@/components/layout/shell";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { RequestFlow } from "@/components/control/request-flow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -180,13 +181,13 @@ function SntMain({ currentTab }: { currentTab: string }) {
       durationHours: dur,
       severity: sev,
       overdueDays: 0,
-      trafficImpact: sev >= 4 ? 4 : 2,
-      safetyRisk: sev >= 4 ? 5 : 3,
+      trafficImpact: sev >= 4 ? 75 : 45,
+      safetyRisk: sev >= 4 ? 85 : 55,
       resourceIds: ["S&T Maintenance Gang"],
       earliest: "2026-09-07",
       latest: "2026-09-13",
       canBundle: true,
-      status: "OPEN",
+      status: "NEW",
     };
 
     addTask(newTask);
@@ -720,6 +721,8 @@ function SntMain({ currentTab }: { currentTab: string }) {
               Submit signaling and interlocking maintenance requisitions and generate simulated IR T-351 disconnection memos.
             </p>
           </header>
+
+          <RequestFlow department="SNT" />
 
           {/* Preset scenarios bar */}
           <div className="rounded-xl border border-border bg-surface-2/60 p-3.5 space-y-2 max-w-2xl">

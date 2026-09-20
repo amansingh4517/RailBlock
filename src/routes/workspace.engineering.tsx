@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import { Shell } from "@/components/layout/shell";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { RequestFlow } from "@/components/control/request-flow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -199,7 +200,7 @@ function EngineeringMain({ currentTab }: { currentTab: string }) {
       earliest: "2026-09-07",
       latest: "2026-09-13",
       canBundle: true,
-      status: "OPEN",
+      status: "NEW",
     };
 
     addTask(newTask);
@@ -744,6 +745,8 @@ function EngineeringMain({ currentTab }: { currentTab: string }) {
               Submit track maintenance demands directly into the central RailBlock priority and optimization engine.
             </p>
           </header>
+
+          <RequestFlow department="ENGG" />
 
           {/* Preset scenarios bar */}
           <div className="rounded-xl border border-border bg-surface-2/60 p-3.5 space-y-2 max-w-2xl">

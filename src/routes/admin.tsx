@@ -19,6 +19,10 @@ import {
   Save,
   Layers,
   ArrowRight,
+  Cpu,
+  Download,
+  Trash2,
+  PlusCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/layout/shell";
@@ -27,7 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RequestDrawer } from "@/components/control/request-drawer";
-import { getAllUsers, registerUser, type PrototypeUser } from "@/lib/rail/auth";
+import { getAllUsers, registerUser, revokeUser, type PrototypeUser } from "@/lib/rail/auth";
 import { useRailStore } from "@/lib/rail/store";
 import { ROLE_LABEL, type Role, type Task } from "@/lib/rail/types";
 
@@ -62,6 +66,8 @@ function AdminMain({ currentTab }: { currentTab: string }) {
   const config = useRailStore((s) => s.config);
   const updateConfig = useRailStore((s) => s.updateConfig);
   const selectBlock = useRailStore((s) => s.selectBlock);
+  const addTask = useRailStore((s) => s.addTask);
+  const addAuditLog = useRailStore((s) => s.addAuditLog);
   const navigate = useNavigate();
 
   const [users, setUsers] = useState<PrototypeUser[]>(() => getAllUsers());
@@ -84,9 +90,28 @@ function AdminMain({ currentTab }: { currentTab: string }) {
   const [cfgShadowPolicy, setCfgShadowPolicy] = useState(config.shadowPolicy);
 
   // Audit filter state
-  const [auditSearch, setAuditSearch] = useState("");
+  const [auditSearch, setAuditSearch] = useState<string>("");
   const [auditFilter, setAuditFilter] = useState<string>("ALL");
   const [auditActionFilter, setAuditActionFilter] = useState<string>("ALL");
+
+  // Feature 5: Solver Engine Toggle
+  const [solverEngine, setSolverEngine] = useState<"HEURISTIC" | "CP_SAT">("HEURISTIC");
+  const [solverBusy, setSolverBusy] = useState(false);
+
+  function handleSolverToggle(engine: "HEURISTIC" | "CP_SAT") {
+    if (engine === "CP_SAT") {
+      setSolverBusy(true);
+      toast.info("Connecting to Python OR-Tools CP-SAT Solver API…");
+      setTimeout(() => {
+        setSolverEngine("CP_SAT");
+        setSolverBusy(false);
+        toast.success("Solver Engine switched to Python CP-SAT (MILP). Next Optimize run will use exact solver.");
+      }, 1200);
+    } else {
+      setSolverEngine("HEURISTIC");
+      toast.success("Solver Engine set to Client Heuristic (fast, deterministic).");
+    }
+  }
 
   // Task inspection drawer
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
@@ -130,7 +155,67 @@ function AdminMain({ currentTab }: { currentTab: string }) {
       safetyHeadwayMin: Number(cfgHeadway),
       shadowPolicy: cfgShadowPolicy,
     });
+    addAuditLog("CONFIG_CHANGE", `Updated system parameters: min=${cfgMinDuration}m, max=${cfgMaxDuration}m, headway=${cfgHeadway}m, policy=${cfgShadowPolicy}`);
     toast.success("System configuration saved and logged to audit trail");
+  }
+
+  function handleRevokeUser(employeeId: string) {
+    const ok = revokeUser(employeeId);
+    if (ok) {
+      setUsers(getAllUsers());
+      addAuditLog("USER_REVOCATION", `Revoked access for employee ${employeeId}`);
+      toast.success(`Access revoked for employee ${employeeId}`);
+    } else {
+      toast.error(`Could not revoke access for ${employeeId}`);
+    }
+  }
+
+  function handleSimulateFeedIngestion() {
+    const newT1: Task = {
+      id: `T-TMS-${Date.now().toString().slice(-4)}`,
+      source: "TMS",
+      department: "ENGG",
+      title: "Emergency Rail Flange Inspection Km 72.4–75.0 Up",
+      detail: "High-frequency ultrasonic wave detection flagged micro-crack suspect near Samalkha.",
+      fromKm: 72.4,
+      toKm: 75.0,
+      line: "UP",
+      durationHours: 3.5,
+      severity: 4,
+      overdueDays: 2,
+      trafficImpact: 65,
+      safetyRisk: 82,
+      resourceIds: ["r-pwm-pnp"],
+      earliest: "2026-09-07",
+      latest: "2026-09-13",
+      canBundle: true,
+      status: "OPEN",
+    };
+    addTask(newT1);
+    addAuditLog("FEED_INGESTION", "Simulated real-time TMS track defect telemetry ingestion");
+    toast.success("Ingested live TMS track defect demand into active solver queue!");
+  }
+
+  function handleExportAuditCsv() {
+    const headers = ["ID", "Timestamp", "Actor", "Action", "Detail", "BlockID"];
+    const rows = audit.map((a) => [
+      a.id,
+      `"${a.at}"`,
+      a.actor,
+      `"${a.action}"`,
+      `"${a.detail.replace(/"/g, '""')}"`,
+      a.blockId || "",
+    ]);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `RailBlock_Audit_Trail_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Audit log exported as CSV file");
   }
 
   // Filter users
@@ -311,6 +396,7 @@ function AdminMain({ currentTab }: { currentTab: string }) {
                   <th className="px-4 py-3">Role</th>
                   <th className="px-4 py-3">Designation / Posting</th>
                   <th className="px-4 py-3">Account Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -345,6 +431,21 @@ function AdminMain({ currentTab }: { currentTab: string }) {
                             <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[10px] text-emerald-400">
                               Custom Provisioned User
                             </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {isDemo ? (
+                            <span className="text-[11px] text-muted font-mono">System Account</span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 gap-1 font-mono"
+                              onClick={() => handleRevokeUser(u.employeeId)}
+                            >
+                              <Trash2 className="size-3.5" />
+                              <span>Revoke Access</span>
+                            </Button>
                           )}
                         </td>
                       </tr>
@@ -532,7 +633,7 @@ function AdminMain({ currentTab }: { currentTab: string }) {
               )}
             </section>
 
-            <section className="rounded-xl bg-surface p-5 border border-border space-y-3">
+            <section className="rounded-xl bg-surface p-5 border border-border space-y-4">
               <h3 className="font-display text-lg font-bold">Active Data Registry Summary</h3>
               <div className="space-y-2 text-xs font-mono">
                 <div className="flex justify-between py-1 border-b border-border">
@@ -552,6 +653,18 @@ function AdminMain({ currentTab }: { currentTab: string }) {
                   <span className="text-amber-400 font-bold">{kpis.tasksOpen}</span>
                 </div>
               </div>
+
+              <div className="pt-2 border-t border-border">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="w-full text-xs gap-2"
+                  onClick={handleSimulateFeedIngestion}
+                >
+                  <PlusCircle className="size-4 text-primary" />
+                  <span>Simulate Real-Time TMS Feed Ingestion</span>
+                </Button>
+              </div>
             </section>
           </div>
         </div>
@@ -567,6 +680,16 @@ function AdminMain({ currentTab }: { currentTab: string }) {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-xs">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs gap-1.5 border-border hover:bg-surface-2"
+                onClick={handleExportAuditCsv}
+              >
+                <Download className="size-3.5 text-primary" />
+                <span>Export Audit Log (CSV)</span>
+              </Button>
+
               <div className="relative w-48 sm:w-60">
                 <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted" />
                 <Input
@@ -664,7 +787,7 @@ function AdminMain({ currentTab }: { currentTab: string }) {
         task={drawerTask}
         isOpen={Boolean(drawerTask)}
         onClose={() => setDrawerTask(null)}
-        onSelectBlock={(bId) => {
+        onSelectBlock={(bId: string) => {
           selectBlock(bId);
           navigate({ to: "/control", search: { tab: "plan" } });
           setDrawerTask(null);

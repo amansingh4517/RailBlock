@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { Shell } from "@/components/layout/shell";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { RequestFlow } from "@/components/control/request-flow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -177,13 +178,13 @@ function TrdMain({ currentTab }: { currentTab: string }) {
       durationHours: dur,
       severity: sev,
       overdueDays: 0,
-      trafficImpact: sev >= 4 ? 4 : 2,
-      safetyRisk: sev >= 4 ? 5 : 3,
+      trafficImpact: sev >= 4 ? 75 : 45,
+      safetyRisk: sev >= 4 ? 85 : 55,
       resourceIds: ["Tower Wagon TW-04"],
       earliest: "2026-09-07",
       latest: "2026-09-13",
       canBundle: true,
-      status: "OPEN",
+      status: "NEW",
     };
 
     addTask(newTask);
@@ -724,6 +725,8 @@ function TrdMain({ currentTab }: { currentTab: string }) {
               Request SCADA feeder power isolation, PTW permits, and tower wagon track possessions.
             </p>
           </header>
+
+          <RequestFlow department="TRD" />
 
           {/* Preset scenarios bar */}
           <div className="rounded-xl border border-border bg-surface-2/60 p-3.5 space-y-2 max-w-2xl">

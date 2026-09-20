@@ -27,20 +27,8 @@ interface RequestDrawerProps {
   onSelectBlock?: (blockId: string) => void;
 }
 
-export function RequestDrawer({
-  task,
-  isOpen,
-  onClose,
-  onSelectBlock,
-}: RequestDrawerProps) {
-  const tasks = useRailStore((s) => s.tasks);
+export function RequestDrawer({ task, isOpen, onClose, onSelectBlock }: RequestDrawerProps) {
   const blocks = useRailStore((s) => s.blocks);
-  const updateTaskStatus = useRailStore((s) => s.updateTaskStatus);
-
-  // Rejection confirmation dialog state
-  const [rejecting, setRejecting] = useState(false);
-  const [rejectionCategory, setRejectionCategory] = useState("Train conflict");
-  const [rejectionRemark, setRejectionRemark] = useState("");
 
   if (!isOpen || !task) return null;
 
@@ -95,35 +83,31 @@ export function RequestDrawer({
                 Source: {task.source}
               </span>
             </div>
-            <h2 className="font-display text-xl font-bold text-fg leading-tight">
-              {task.title}
-            </h2>
+            <Button size="icon" variant="ghost" onClick={onClose} className="rounded-full">
+              <X className="h-5 w-5" />
+            </Button>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted hover:text-fg hover:bg-surface transition-colors"
-            aria-label="Close request drawer"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
+          {/* Source System & Priority Badge */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-surface-2 border border-border">
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-muted">Source Integration System</p>
+              <p className="text-sm font-semibold text-fg">{task.source}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] uppercase tracking-wider text-muted">Priority Weight</p>
+              <p className="text-lg font-bold text-amber-400 font-mono">{pScore.toFixed(0)}</p>
+            </div>
+          </div>
 
-        {/* Scrollable Content Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5 text-sm">
-          {/* Rejection notice if rejected */}
-          {task.status === "REJECTED" && (
-            <div className="rounded-xl border border-danger/30 bg-danger/10 p-4 space-y-1">
-              <div className="flex items-center gap-2 text-danger font-semibold text-xs font-mono uppercase">
-                <Ban className="size-4" />
-                <span>Requisition Rejected by Control</span>
-              </div>
-              <p className="text-xs text-muted">
-                Reason: <strong className="text-fg">{task.rejectionReason || "Operational constraint"}</strong>
+          {/* Details */}
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-xs uppercase tracking-wider text-muted mb-1">Work Description</h4>
+              <p className="text-sm text-fg/90 bg-surface-2/50 p-3 rounded-md border border-border/50">
+                {task.detail}
               </p>
             </div>
-          )}
 
           {/* Operational Parameters Grid */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -302,6 +286,7 @@ export function RequestDrawer({
                   Cancel
                 </button>
               </div>
+            )}
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-mono text-muted">Rejection Reason</label>
@@ -400,9 +385,20 @@ export function RequestDrawer({
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
-      </aside>
+
+        {/* Footer */}
+        <div className="pt-4 border-t border-border flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs text-muted">
+            <Shield className="h-4 w-4 text-emerald-400" />
+            <span>SIH 2026 AI Planning Engine</span>
+          </div>
+          <Button variant="secondary" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

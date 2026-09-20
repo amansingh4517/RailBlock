@@ -215,6 +215,22 @@ export function registerUser(
   return { ok: true, session };
 }
 
+export function revokeUser(employeeId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const customRaw = localStorage.getItem(USERS_KEY);
+    if (!customRaw) return false;
+    let customList = JSON.parse(customRaw) as PrototypeUser[];
+    customList = customList.filter((u) => u.employeeId.toUpperCase() !== employeeId.toUpperCase());
+    localStorage.setItem(USERS_KEY, JSON.stringify(customList));
+    memoryUsers = memoryUsers.filter((u) => u.employeeId.toUpperCase() !== employeeId.toUpperCase());
+    return true;
+  } catch (err) {
+    console.warn("Failed to revoke user:", err);
+    return false;
+  }
+}
+
 export function getRoleDefaultPath(role: Role): string {
   switch (role) {
     case "CONTROL":
