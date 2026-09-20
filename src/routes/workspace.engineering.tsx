@@ -65,6 +65,7 @@ function EngineeringMain({ currentTab }: { currentTab: string }) {
   const enggBlocks = blocks.filter(
     (b) => b.departments.includes("ENGG") && b.date >= WEEK_START
   );
+  const sanctionedEnggBlocks = enggBlocks.filter((b) => b.status === "APPROVED");
   const enggMachines = RESOURCES.filter(
     (m) =>
       m.kind === "MACHINE" &&
@@ -236,9 +237,11 @@ function EngineeringMain({ currentTab }: { currentTab: string }) {
             </div>
 
             <div className="rounded-xl bg-surface p-4 border border-border">
-              <p className="text-[11px] uppercase font-mono text-muted">Sanctioned Blocks</p>
+              <p className="text-[11px] uppercase font-mono text-muted">Track Possessions</p>
               <p className="font-display text-3xl font-bold mt-1 text-primary">{enggBlocks.length}</p>
-              <p className="text-[11px] text-muted mt-1">Track access granted</p>
+              <p className="text-[11px] text-muted mt-1">
+                {sanctionedEnggBlocks.length} Sanctioned · {enggBlocks.length - sanctionedEnggBlocks.length} Pending
+              </p>
             </div>
 
             <div className="rounded-xl bg-surface p-4 border border-border">
@@ -290,7 +293,7 @@ function EngineeringMain({ currentTab }: { currentTab: string }) {
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-xl font-bold flex items-center gap-2">
                   <TrainTrack className="size-4 text-primary" />
-                  <span>Upcoming Sanctioned Possessions</span>
+                  <span>Upcoming Possessions</span>
                 </h2>
                 <Link
                   to="/workspace/engineering"
@@ -484,9 +487,9 @@ function EngineeringMain({ currentTab }: { currentTab: string }) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="font-display text-2xl md:text-3xl font-bold">Sanctioned Possessions</h1>
+              <h1 className="font-display text-2xl md:text-3xl font-bold">Track Possessions</h1>
               <p className="text-xs text-muted">
-                Track access granted by Control Office for Civil &amp; Permanent Way maintenance
+                Track access and corridor block schedule for Civil &amp; Permanent Way maintenance
               </p>
             </div>
             <span className="font-mono text-xs text-muted rounded bg-surface-2 px-2.5 py-1 border border-border">
