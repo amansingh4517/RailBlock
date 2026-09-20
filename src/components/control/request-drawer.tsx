@@ -1,8 +1,19 @@
-/**
- * RequestDrawer — Detail slide-over drawer for BDMS/TMS/TDMS/SMMS maintenance tasks
- */
-import { X, Calendar, Clock, MapPin, AlertTriangle, CheckCircle2, Shield, ArrowRight } from "lucide-react";
-import { DeptBadge } from "@/components/rail/bits";
+import { useState } from "react";
+import {
+  X,
+  CheckCircle2,
+  AlertTriangle,
+  Layers,
+  ArrowRight,
+  Clock,
+  Sparkles,
+  ShieldAlert,
+  Wrench,
+  Ban,
+  FileCheck2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { DeptBadge, StatusBadge } from "@/components/rail/bits";
 import { Button } from "@/components/ui/button";
 import { formatHours, formatSpan, lineLabel, minToHhmm, weekday } from "@/lib/rail/format";
 import { priorityScore } from "@/lib/rail/scoring";
@@ -16,128 +27,382 @@ interface RequestDrawerProps {
   onSelectBlock?: (blockId: string) => void;
 }
 
-export function RequestDrawer({ task, isOpen, onClose, onSelectBlock }: RequestDrawerProps) {
+export function RequestDrawer({
+  task,
+  isOpen,
+  onClose,
+  onSelectBlock,
+}: RequestDrawerProps) {
+  const tasks = useRailStore((s) => s.tasks);
   const blocks = useRailStore((s) => s.blocks);
+  const updateTaskStatus = useRailStore((s) => s.updateTaskStatus);
+
+  // Rejection confirmation dialog state
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectionCategory, setRejectionCategory] = useState("Train conflict");
+  const [rejectionRemark, setRejectionRemark] = useState("");
 
   if (!isOpen || !task) return null;
 
-  const assignedBlock = blocks.find((b) => b.taskIds.includes(task.id));
-  const pScore = priorityScore(task);
+  // Nearby departmental work correlation (+/- 5 km)
+  const nearbyWork = tasks.filter(
+    (t) =>
+      t.id !== task.id &&
+      t.status !== "REJECTED" &&
+      Math.abs(t.fromKm - task.fromKm) <= 5.0
+  );
+
+  // Check if seated in an operational block
+  const resultingBlock = blocks.find((b) => b.taskIds.includes(task.id));
+
+  function handleStartReview() {
+    updateTaskStatus(task!.id, "UNDER_REVIEW", "Under active review by Control Desk");
+    toast.info(`Request ${task!.id} moved to Under Review`);
+  }
+
+  function handleAccept() {
+    updateTaskStatus(task!.id, "ACCEPTED", "Accepted for planning and multi-department bundling");
+    toast.success(`Request ${task!.id} accepted for corridor planning`);
+    onClose();
+  }
+
+  function handleRejectSubmit() {
+    updateTaskStatus(
+      task!.id,
+      "REJECTED",
+      rejectionRemark || "Rejected by Control Officer",
+      rejectionCategory
+    );
+    toast.error(`Request ${task!.id} rejected (${rejectionCategory})`);
+    setRejecting(false);
+    onClose();
+  }
+
+  const pScore = priorityScore(task).toFixed(0);
+  const priorityLevel = task.severity >= 4 ? "HIGH" : task.severity === 3 ? "MEDIUM" : "ROUTINE";
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity">
-      <div className="w-full max-w-md h-full bg-surface border-l border-border p-6 shadow-2xl flex flex-col justify-between overflow-y-auto">
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <DeptBadge d={task.department} />
-                <span className="font-mono text-xs text-muted">{task.id}</span>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+      <aside className="relative flex h-full w-full max-w-xl flex-col bg-surface border-l border-border shadow-2xl overflow-hidden">
+        {/* Sticky Drawer Header */}
+        <div className="flex items-start justify-between border-b border-border p-5 bg-surface-2/60">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-bold text-muted">{task.id}</span>
+              <DeptBadge d={task.department} />
+              <StatusBadge status={task.status} />
+              <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] font-mono text-muted border border-border">
+                Source: {task.source}
+              </span>
+            </div>
+            <h2 className="font-display text-xl font-bold text-fg leading-tight">
+              {task.title}
+            </h2>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-muted hover:text-fg hover:bg-surface transition-colors"
+            aria-label="Close request drawer"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        {/* Scrollable Content Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-5 text-sm">
+          {/* Rejection notice if rejected */}
+          {task.status === "REJECTED" && (
+            <div className="rounded-xl border border-danger/30 bg-danger/10 p-4 space-y-1">
+              <div className="flex items-center gap-2 text-danger font-semibold text-xs font-mono uppercase">
+                <Ban className="size-4" />
+                <span>Requisition Rejected by Control</span>
               </div>
-              <h3 className="font-display text-2xl mt-2 text-fg">{task.title}</h3>
-            </div>
-            <Button size="icon" variant="ghost" onClick={onClose} className="rounded-full">
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-
-          {/* Source System & Priority Badge */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-surface-2 border border-border">
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-muted">Source Integration System</p>
-              <p className="text-sm font-semibold text-fg">{task.source}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[11px] uppercase tracking-wider text-muted">Priority Weight</p>
-              <p className="text-lg font-bold text-amber-400 font-mono">{pScore.toFixed(0)}</p>
-            </div>
-          </div>
-
-          {/* Details */}
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-xs uppercase tracking-wider text-muted mb-1">Work Description</h4>
-              <p className="text-sm text-fg/90 bg-surface-2/50 p-3 rounded-md border border-border/50">
-                {task.detail}
+              <p className="text-xs text-muted">
+                Reason: <strong className="text-fg">{task.rejectionReason || "Operational constraint"}</strong>
               </p>
             </div>
+          )}
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="p-3 rounded-md bg-surface-2 border border-border/50">
-                <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
-                  <MapPin className="h-3.5 w-3.5 text-primary" />
-                  <span>Location</span>
-                </div>
-                <p className="font-mono font-medium text-fg">{formatSpan(task.fromKm, task.toKm)}</p>
-                <p className="text-xs text-muted">{lineLabel(task.line)}</p>
-              </div>
-
-              <div className="p-3 rounded-md bg-surface-2 border border-border/50">
-                <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
-                  <Clock className="h-3.5 w-3.5 text-amber-400" />
-                  <span>Duration Required</span>
-                </div>
-                <p className="font-mono font-medium text-fg">{formatHours(task.durationHours)}</p>
-                <p className="text-xs text-muted">Earliest: {task.earliest}</p>
-              </div>
+          {/* Operational Parameters Grid */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl bg-surface-2 p-3 border border-border">
+              <span className="text-[11px] font-mono text-muted block">Location</span>
+              <span className="font-mono font-bold text-xs text-fg mt-0.5 block">
+                {formatSpan(task.fromKm, task.toKm)}
+              </span>
+              <span className="text-[10px] text-muted">{lineLabel(task.line)}</span>
             </div>
 
-            {/* Special Safety / Severity Alert */}
-            {task.severity >= 4 && (
-              <div className="flex items-center gap-2 p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                <span>High Severity Maintenance Task ({task.severity}/5) — Priority scheduling required</span>
+            <div className="rounded-xl bg-surface-2 p-3 border border-border">
+              <span className="text-[11px] font-mono text-muted block">Duration</span>
+              <span className="font-mono font-bold text-xs text-fg mt-0.5 block">
+                {formatHours(task.durationHours)}
+              </span>
+              <span className="text-[10px] text-muted">Possession request</span>
+            </div>
+
+            <div className="rounded-xl bg-surface-2 p-3 border border-border">
+              <span className="text-[11px] font-mono text-muted block">Priority Score</span>
+              <span className="font-mono font-bold text-xs text-amber-400 mt-0.5 block">
+                {pScore} / 100
+              </span>
+              <span className="text-[10px] text-muted">{priorityLevel} (Sev {task.severity}/5)</span>
+            </div>
+
+            <div className="rounded-xl bg-surface-2 p-3 border border-border">
+              <span className="text-[11px] font-mono text-muted block">Window Target</span>
+              <span className="font-mono font-bold text-[11px] text-fg mt-0.5 block truncate">
+                {task.latest}
+              </span>
+              <span className="text-[10px] text-muted">Target horizon</span>
+            </div>
+          </div>
+
+          {/* AI / Priority Explanation (PS-26027 Requirement) */}
+          <div className="rounded-xl bg-surface-2 p-4 border border-border space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
+                <Sparkles className="size-3.5 text-primary" />
+                <span>AI Prioritization &amp; Decision Justification</span>
+              </h3>
+              <span className="font-mono text-xs font-bold text-amber-400">
+                {priorityLevel} PRIORITY
+              </span>
+            </div>
+            <ul className="space-y-1 text-xs text-muted">
+              <li className="flex items-start gap-1.5">
+                <span className="text-primary font-bold">•</span>
+                <span><strong className="text-fg">Criticality:</strong> Severity index {task.severity}/5 on primary trunk corridor infrastructure.</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-primary font-bold">•</span>
+                <span><strong className="text-fg">Urgency:</strong> Overdue maintenance cycle targeting {task.latest}.</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-primary font-bold">•</span>
+                <span><strong className="text-fg">Corridor Impact:</strong> Asset availability impact on {lineLabel(task.line)} track with ~{(task.trafficImpact * 5.5).toFixed(0)}m detention exposure.</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Work Description */}
+          <div className="rounded-xl bg-surface-2 p-4 border border-border space-y-2">
+            <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
+              <Wrench className="size-3.5 text-primary" />
+              <span>Departmental Work Description &amp; Machinery</span>
+            </h3>
+            <p className="text-xs text-fg leading-relaxed">{task.detail}</p>
+            {task.resourceIds.length > 0 && (
+              <div className="pt-1 flex items-center gap-2 text-xs">
+                <span className="font-mono text-[11px] text-muted">Resources / Machines:</span>
+                <span className="font-mono text-xs text-primary font-medium">
+                  {task.resourceIds.join(", ")}
+                </span>
               </div>
             )}
+          </div>
 
-            {/* Assigned Possession Block Status */}
-            <div>
-              <h4 className="text-xs uppercase tracking-wider text-muted mb-2">Block Assignment</h4>
-              {assignedBlock ? (
-                <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold">
-                      <CheckCircle2 className="h-4 w-4" /> Assigned to Block {assignedBlock.id}
-                    </span>
-                    <span className="text-xs font-mono text-muted">
-                      {weekday(assignedBlock.date)} {minToHhmm(assignedBlock.startMin)}–{minToHhmm(assignedBlock.endMin)}
-                    </span>
-                  </div>
-                  {onSelectBlock && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full mt-2 text-xs border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20"
-                      onClick={() => {
-                        onSelectBlock(assignedBlock.id);
-                        onClose();
-                      }}
-                    >
-                      Inspect Possession Block &rarr;
-                    </Button>
-                  )}
+          {/* Traceability: Resulting Block */}
+          {resultingBlock && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[11px] uppercase tracking-wider text-primary font-bold block">
+                  Resulting Operational Block
+                </span>
+                <span className="rounded bg-primary/20 px-2 py-0.5 text-[10px] font-mono text-primary font-semibold">
+                  {resultingBlock.status === "APPROVED" ? "SANCTIONED" : "PROPOSED"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-mono text-sm font-bold text-fg">{resultingBlock.id}</p>
+                  <p className="text-xs text-muted">
+                    {weekday(resultingBlock.date)} · {minToHhmm(resultingBlock.startMin)}–{minToHhmm(resultingBlock.endMin)}
+                  </p>
+                  <p className="text-[11px] font-mono text-muted">
+                    {formatSpan(resultingBlock.fromKm, resultingBlock.toKm)} ({lineLabel(resultingBlock.line)})
+                  </p>
                 </div>
-              ) : (
-                <div className="p-4 rounded-lg bg-surface-2 border border-border text-center text-xs text-muted">
-                  Not currently bundled into an active block possession.
+                {onSelectBlock && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1 text-xs"
+                    onClick={() => {
+                      onSelectBlock(resultingBlock.id);
+                      onClose();
+                    }}
+                  >
+                    <span>View Block</span>
+                    <ArrowRight className="size-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Related Nearby Departmental Work */}
+          <div className="rounded-xl bg-surface-2 p-4 border border-border space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
+                <Layers className="size-3.5 text-emerald-400" />
+                <span>Nearby Demands for Multi-Dept Bundling (&plusmn;5 km)</span>
+              </h3>
+              <span className="text-[11px] font-mono text-muted">{nearbyWork.length} candidates</span>
+            </div>
+
+            {nearbyWork.length === 0 ? (
+              <p className="text-xs text-muted">No adjacent demands found in this section.</p>
+            ) : (
+              <ul className="space-y-2">
+                {nearbyWork.slice(0, 3).map((nw) => (
+                  <li
+                    key={nw.id}
+                    className="flex items-center justify-between p-2 rounded-lg bg-surface border border-border text-xs"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <DeptBadge d={nw.department} />
+                        <span className="font-mono text-[10px] text-muted">{nw.id}</span>
+                        <span className="font-medium text-fg">{nw.title}</span>
+                      </div>
+                      <span className="text-[11px] font-mono text-muted">
+                        {formatSpan(nw.fromKm, nw.toKm)} · {formatHours(nw.durationHours)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {nearbyWork.length > 0 && (
+              <div className="rounded-lg bg-emerald-500/10 p-2.5 text-[11px] text-emerald-400 border border-emerald-500/20 flex items-center gap-2">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span>Multi-Department Bundling Opportunity: Multiple maintenance activities can share this single track window.</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action Controls Footer */}
+        <div className="border-t border-border p-4 bg-surface-2/60">
+          {rejecting ? (
+            <div className="space-y-3 rounded-xl bg-danger/10 p-3 border border-danger/30">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono font-bold text-danger uppercase">
+                  Confirm Rejection of {task.id}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setRejecting(false)}
+                  className="text-muted hover:text-fg text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-mono text-muted">Rejection Reason</label>
+                <select
+                  value={rejectionCategory}
+                  onChange={(e) => setRejectionCategory(e.target.value)}
+                  className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs font-mono"
+                >
+                  <option value="Train conflict">Train conflict (Passenger priority)</option>
+                  <option value="Capacity constraint">Corridor capacity constraint</option>
+                  <option value="Unsafe timing">Unsafe timing / Fog restriction</option>
+                  <option value="Insufficient concurrence">Insufficient departmental concurrence</option>
+                  <option value="Other operational reason">Other operational reason</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-mono text-muted">Remarks for Department</label>
+                <input
+                  value={rejectionRemark}
+                  onChange={(e) => setRejectionRemark(e.target.value)}
+                  placeholder="e.g. Reschedule to Sunday shadow corridor"
+                  className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant="danger"
+                  className="flex-1 text-xs"
+                  onClick={handleRejectSubmit}
+                >
+                  Confirm Rejection
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs"
+                  onClick={() => setRejecting(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
+                Close Drawer
+              </Button>
+
+              {/* Status-driven Review Actions */}
+              {(task.status === "NEW" || task.status === "OPEN") && (
+                <Button
+                  size="sm"
+                  onClick={handleStartReview}
+                  className="gap-1.5 text-xs"
+                >
+                  <Clock className="size-4" />
+                  <span>Start Review</span>
+                </Button>
+              )}
+
+              {task.status === "UNDER_REVIEW" && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => setRejecting(true)}
+                    className="text-xs"
+                  >
+                    Reject Request
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleAccept}
+                    className="gap-1.5 text-xs"
+                  >
+                    <CheckCircle2 className="size-4" />
+                    <span>Accept for Planning</span>
+                  </Button>
+                </div>
+              )}
+
+              {(task.status === "ACCEPTED" || task.status === "PLANNED") && (
+                <div className="flex items-center gap-2 text-xs font-mono text-emerald-400">
+                  <CheckCircle2 className="size-4" />
+                  <span>Accepted for Corridor Planning</span>
+                </div>
+              )}
+
+              {task.status === "REJECTED" && (
+                <div className="flex items-center gap-2 text-xs font-mono text-danger">
+                  <Ban className="size-4" />
+                  <span>Request Rejected</span>
                 </div>
               )}
             </div>
-          </div>
+          )}
         </div>
-
-        {/* Footer */}
-        <div className="pt-4 border-t border-border flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs text-muted">
-            <Shield className="h-4 w-4 text-emerald-400" />
-            <span>SIH 2026 AI Planning Engine</span>
-          </div>
-          <Button variant="secondary" size="sm" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      </div>
+      </aside>
     </div>
   );
 }
